@@ -280,9 +280,59 @@ typedef enum _oe_result
     OE_VERIFY_REVOKED,
 
     /**
+     * Could not find a valid validity period.
+     */
+    OE_VERIFY_FAILED_TO_FIND_VALIDITY_PERIOD,
+
+    /**
      * An underlying crypto provider returned an error.
      */
     OE_CRYPTO_ERROR,
+
+    /**
+     * OE report size does not match the expected size.
+     */
+    OE_INCORRECT_REPORT_SIZE,
+
+    /**
+     * Quote verification error.
+     */
+    OE_QUOTE_VERIFICATION_ERROR,
+
+    /**
+     * Quote enclave identity verification failed.
+     */
+    OE_QUOTE_ENCLAVE_IDENTITY_VERIFICATION_FAILED,
+
+    /**
+     * Unique id of the quoting enclave does not match expected value.
+     */
+    OE_QUOTE_ENCLAVE_IDENTITY_UNIQUEID_MISMATCH,
+
+    /**
+     * Product id of the quoting enclave does not match expected value.
+     */
+    QE_QUOTE_ENCLAVE_IDENTITY_PRODUCTID_MISMATCH,
+
+    /**
+     * AES CMAC of the report does not match the expected value.
+     */
+    OE_VERIFY_FAILED_AES_CMAC_MISMATCH,
+
+    /**
+     * Failed to post a switchless call to host workers
+     */
+    OE_CONTEXT_SWITCHLESS_OCALL_MISSED,
+
+    /**
+     * Thread creation failed.
+     */
+    OE_THREAD_CREATE_ERROR,
+
+    /**
+     * Thread join failed.
+     */
+    OE_THREAD_JOIN_ERROR,
 
     __OE_RESULT_MAX = OE_ENUM_MAX,
 } oe_result_t;

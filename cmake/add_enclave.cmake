@@ -230,6 +230,6 @@ macro(add_enclave_optee)
   #       https://gitlab.kitware.com/cmake/cmake/issues/17210
   set(CMAKE_EXE_LINKER_FLAGS "-T ${TA_LINKER_SCRIPT} -L${LIBGCC_PATH}")
   if(ENCLAVE_CXX)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --eh-frame-hdr")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --eh-frame-hdr --entry=_start")
   endif()
 endmacro()

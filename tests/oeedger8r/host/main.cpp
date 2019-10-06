@@ -97,6 +97,7 @@ int main(int argc, const char* argv[])
 
     test_deepcopy_edl_ecalls(enclave);
 
+    OE_TEST(test_switchless_edl_ocalls(enclave) == OE_OK);
 done:
     oe_terminate_enclave(enclave);
 

@@ -7,11 +7,14 @@ void TestAll()
 {
 #if !defined(_WIN32)
     TestASN1();
+#endif
     TestCRL();
     TestEC();
-    TestRandom();
-    TestRdrand();
     TestRSA();
+    TestRandom();
+#if defined(__x86_64__) || defined(__i386__)
+    // Test the RDRAND/RDSEED instructions, which are x86/64-specific.
+    TestCpuEntropy();
 #endif
     TestHMAC();
     TestKDF();

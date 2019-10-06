@@ -3,24 +3,40 @@
 
 ##==============================================================================
 ##
-## These rules generate the edge routines for the internal ECALLs/OCALLs used
-## by liboehost/liboecore.
+## These rules generate the edge routines for the internal TEE-agnostic
+## ECALLs/OCALLs used by liboehost/liboecore.
+##
+##==============================================================================
+
+set(EDL_DIR ${CMAKE_SOURCE_DIR}/common)
+
+set(TEE_EDL_FILE ${EDL_DIR}/tee.edl)
+
+add_custom_command(
+    OUTPUT tee_t.h tee_t.c tee_args.h
+    DEPENDS ${TEE_EDL_FILE} edger8r
+    COMMAND edger8r --search-path ${EDL_DIR} --trusted ${TEE_EDL_FILE})
+
+add_custom_target(tee_trusted_edl
+    DEPENDS tee_t.h tee_t.c tee_args.h)
+
+##==============================================================================
+##
+## These rules generate the edge routines for the internal SGX-specific
+## ECALLs/OCALLs used by liboehost/liboecore.
 ##
 ##==============================================================================
 
 if(OE_SGX)
-
-    set(EDL_DIR ${CMAKE_SOURCE_DIR}/common)
-    set(EDL_FILE ${EDL_DIR}/sgx/internal.edl)
+    set(SGX_EDL_FILE ${EDL_DIR}/sgx/sgx.edl)
 
     add_custom_command(
-        OUTPUT internal_t.h internal_t.c internal_args.h
-        DEPENDS ${EDL_FILE} edger8r
-        COMMAND edger8r --search-path ${EDL_DIR} --trusted ${EDL_FILE})
+        OUTPUT sgx_t.h sgx_t.c sgx_args.h
+        DEPENDS ${SGX_EDL_FILE} edger8r
+        COMMAND edger8r --search-path ${EDL_DIR} --trusted ${SGX_EDL_FILE})
 
-    add_custom_target(internal_trusted_edl
-        DEPENDS internal_t.h internal_t.c internal_args.h)
-
+    add_custom_target(sgx_trusted_edl
+        DEPENDS sgx_t.h sgx_t.c sgx_args.h)
 endif()
 
 ##==============================================================================
@@ -34,15 +50,16 @@ set(MUSL_SRC_DIR ${PROJECT_SOURCE_DIR}/3rdparty/musl/musl/src)
 
 if (OE_SGX)
     list(APPEND PLATFORM_SRC
+        ../../common/sgx/collaterals.c
         sgx/backtrace.c
         sgx/calls.c
         sgx/cpuid.c
         sgx/entropy.c
         sgx/exception.c
         sgx/globals.c
+        sgx/hostcalls.c
         sgx/init.c
-        sgx/internal.c
-        sgx/internal_t_wrapper.c
+        sgx/sgx_t_wrapper.c
         sgx/jump.c
         sgx/keys.c
         sgx/memory.c
@@ -75,15 +92,18 @@ elseif (OE_TRUSTZONE)
         optee/backtrace.c
         optee/bounds.c
         optee/calls.c
+        optee/entropy.c
         optee/header.c
+        optee/hostcalls.c
         optee/globals.c
         optee/gp.c
+        optee/keys.c
         optee/printf.c
         optee/sched_yield.c
         optee/spinlock.c
-        optee/start.c
         optee/stubs.c
-        optee/thread.c)
+        optee/thread.c
+        optee/tracee.c)
 endif()
 
 if (OE_TRUSTZONE OR (OE_SGX AND (UNIX OR USE_CLANGW)))
@@ -92,6 +112,7 @@ endif ()
 
 add_library(oecore STATIC
     ../../common/safecrt.c
+    ../../common/argv.c
     ${MUSL_SRC_DIR}/prng/rand.c
     ${MUSL_SRC_DIR}/string/memcmp.c
     ${MUSL_SRC_DIR}/string/memcpy.c
@@ -102,6 +123,7 @@ add_library(oecore STATIC
     assert.c
     atexit.c
     backtrace.c
+    calls.c
     ctype.c
     debugmalloc.c
     errno.c
@@ -115,12 +137,16 @@ add_library(oecore STATIC
     pthread.c
     result.c
     sbrk.c
+    arena.c
     stdio.c
     strerror.c
     string.c
     strtok_r.c
     strtoul.c
+    switchlesscalls.c
+    tee_t_wrapper.c
     time.c
+    tracee.c
     ${PLATFORM_SRC})
 
 # Suppress type conversion warnings introduced by 3rdparty code
@@ -135,10 +161,11 @@ set_source_files_properties(__secs_to_tm.c PROPERTIES
 
 maybe_build_using_clangw(oecore)
 
+add_dependencies(oecore tee_trusted_edl)
 if(OE_SGX)
-    add_dependencies(oecore internal_trusted_edl)
-    target_include_directories(oecore PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+    add_dependencies(oecore sgx_trusted_edl)
 endif()
+target_include_directories(oecore PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(oecore PUBLIC oe_includes)
 if (OE_TRUSTZONE)
@@ -237,7 +264,9 @@ elseif(OE_TRUSTZONE)
         -nostdlib -nodefaultlibs -nostartfiles
         --no-undefined
         -pie
-        --sort-section=alignment)
+        --sort-section=alignment
+        "-z max-page-size=4096"
+        --as-needed)
 endif()
 
 set_property(TARGET oecore PROPERTY ARCHIVE_OUTPUT_DIRECTORY ${OE_LIBDIR}/openenclave/enclave)

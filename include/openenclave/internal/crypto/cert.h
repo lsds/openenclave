@@ -264,7 +264,7 @@ oe_result_t oe_cert_chain_get_cert(
  *
  * @return OE_OK success
  * @return OE_INVALID_PARAMETER a parameter is invalid
- * @return OE_NOT_FOUND no self-signed certificate was found
+ * @return OE_NOT_FOUND chain is empty or no self-signed certificate was found
  * @return OE_FAILURE general failure
  */
 oe_result_t oe_cert_chain_get_root_cert(
@@ -283,6 +283,7 @@ oe_result_t oe_cert_chain_get_root_cert(
  *
  * @return OE_OK success
  * @return OE_INVALID_PARAMETER a parameter is invalid
+ * @return OE_NOT_FOUND certificate chain is empty
  * @return OE_FAILURE general failure
  */
 oe_result_t oe_cert_chain_get_leaf_cert(
@@ -343,6 +344,20 @@ oe_result_t oe_get_crl_distribution_points(
     size_t* num_urls,
     uint8_t* buffer,
     size_t* buffer_size);
+
+/**
+ * Gets the validation datetimes from the certificate.
+ *
+ * @param cert[in] the certificate.
+ * @param not_before the date when the certificate validate starts (may be
+ * null).
+ * @param not_after the date at which this CRL should be considered invalid
+ *        (may be null).
+ */
+oe_result_t oe_cert_get_validity_dates(
+    const oe_cert_t* cert,
+    oe_datetime_t* not_before,
+    oe_datetime_t* not_after);
 
 #ifdef OE_BUILD_ENCLAVE
 

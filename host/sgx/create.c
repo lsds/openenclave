@@ -42,8 +42,10 @@ static char* get_fullpath(const char* path)
 #include <openenclave/internal/mem.h>
 #include <openenclave/internal/properties.h>
 #include <openenclave/internal/raise.h>
+#include <openenclave/internal/result.h>
 #include <openenclave/internal/sgxcreate.h>
 #include <openenclave/internal/sgxtypes.h>
+#include <openenclave/internal/switchless.h>
 #include <openenclave/internal/trace.h>
 #include <openenclave/internal/utils.h>
 #include <string.h>
@@ -51,7 +53,7 @@ static char* get_fullpath(const char* path)
 #include "cpuid.h"
 #include "enclave.h"
 #include "exception.h"
-#include "internal_u.h"
+#include "sgx_u.h"
 #include "sgxload.h"
 
 static oe_once_type _enclave_init_once;
@@ -72,7 +74,8 @@ static void _initialize_exception_handling(void)
 static void _initialize_enclave_host()
 {
     oe_once(&_enclave_init_once, _initialize_exception_handling);
-    oe_register_internal_ocall_function_table();
+    oe_register_tee_ocall_function_table();
+    oe_register_sgx_ocall_function_table();
     oe_register_syscall_ocall_function_table();
 }
 
@@ -333,6 +336,40 @@ done:
     return result;
 }
 
+oe_result_t oe_get_cpuid_table_ocall(
+    void* cpuid_table_buffer,
+    size_t cpuid_table_buffer_size)
+{
+    oe_result_t result = OE_UNEXPECTED;
+    unsigned int subleaf = 0; // pass sub-leaf of 0 - needed for leaf 4
+    uint32_t* leaf;
+    size_t size;
+
+    leaf = (uint32_t*)cpuid_table_buffer;
+    size = sizeof(uint32_t) * OE_CPUID_LEAF_COUNT * OE_CPUID_REG_COUNT;
+
+    if (!cpuid_table_buffer || cpuid_table_buffer_size != size)
+        OE_RAISE(OE_INVALID_PARAMETER);
+
+    for (unsigned int i = 0; i < OE_CPUID_LEAF_COUNT; i++)
+    {
+        oe_get_cpuid(
+            i,
+            subleaf,
+            &leaf[OE_CPUID_RAX],
+            &leaf[OE_CPUID_RBX],
+            &leaf[OE_CPUID_RCX],
+            &leaf[OE_CPUID_RDX]);
+
+        leaf += OE_CPUID_REG_COUNT;
+    }
+
+    result = OE_OK;
+
+done:
+    return result;
+}
+
 /*
 **==============================================================================
 **
@@ -347,31 +384,64 @@ done:
 static oe_result_t _initialize_enclave(oe_enclave_t* enclave)
 {
     oe_result_t result = OE_UNEXPECTED;
-    oe_init_enclave_args_t args;
-    unsigned int subleaf = 0; // pass sub-leaf of 0 - needed for leaf 4
+    uint64_t result_out = 0;
 
-    // Initialize enclave cache of CPUID info for emulation
-    for (unsigned int i = 0; i < OE_CPUID_LEAF_COUNT; i++)
+    OE_CHECK(oe_ecall(
+        enclave, OE_ECALL_INIT_ENCLAVE, (uint64_t)enclave, &result_out));
+
+    if (result_out > OE_UINT32_MAX)
+        OE_RAISE(OE_FAILURE);
+
+    if (!oe_is_valid_result((uint32_t)result_out))
+        OE_RAISE(OE_FAILURE);
+
+    OE_CHECK((oe_result_t)result_out);
+
+    result = OE_OK;
+
+done:
+    return result;
+}
+
+/*
+** _config_enclave()
+**
+** Config the enclave with an array of settings.
+*/
+
+static oe_result_t _configure_enclave(
+    oe_enclave_t* enclave,
+    const oe_enclave_setting_t* settings,
+    uint32_t setting_count)
+{
+    oe_result_t result = OE_UNEXPECTED;
+
+    for (uint32_t i = 0; i < setting_count; i++)
     {
-        oe_get_cpuid(
-            i,
-            subleaf,
-            &args.cpuid_table[i][OE_CPUID_RAX],
-            &args.cpuid_table[i][OE_CPUID_RBX],
-            &args.cpuid_table[i][OE_CPUID_RCX],
-            &args.cpuid_table[i][OE_CPUID_RDX]);
+        switch (settings[i].setting_type)
+        {
+            // Configure the switchless ocalls, such as the number of workers.
+            case OE_ENCLAVE_SETTING_CONTEXT_SWITCHLESS:
+            {
+                size_t max_host_workers =
+                    settings[i].u.context_switchless_setting->max_host_workers;
+                size_t max_enclave_workers =
+                    settings[i]
+                        .u.context_switchless_setting->max_enclave_workers;
+
+                // Switchless ecalls are not enabled yet. Make sure the max
+                // number of enclave workers is always 0.
+                if (max_enclave_workers != 0)
+                    OE_RAISE(OE_INVALID_PARAMETER);
+
+                OE_CHECK(
+                    oe_start_switchless_manager(enclave, max_host_workers));
+                break;
+            }
+            default:
+                OE_RAISE(OE_INVALID_PARAMETER);
+        }
     }
-
-    // Pass the enclave handle to the enclave.
-    args.enclave = enclave;
-
-    {
-        uint64_t arg_out = 0;
-        OE_CHECK(oe_ecall(
-            enclave, OE_ECALL_INIT_ENCLAVE, (uint64_t)&args, &arg_out));
-        OE_CHECK((oe_result_t)arg_out);
-    }
-
     result = OE_OK;
 
 done:
@@ -621,10 +691,10 @@ oe_result_t oe_create_enclave(
     const char* enclave_path,
     oe_enclave_type_t enclave_type,
     uint32_t flags,
-    const void* config,
-    uint32_t config_size,
+    const oe_enclave_setting_t* settings,
+    uint32_t setting_count,
     const oe_ocall_func_t* ocall_table,
-    uint32_t ocall_table_size,
+    uint32_t ocall_count,
     oe_enclave_t** enclave_out)
 {
     oe_result_t result = OE_UNEXPECTED;
@@ -640,7 +710,9 @@ oe_result_t oe_create_enclave(
     if (!enclave_path || !enclave_out ||
         ((enclave_type != OE_ENCLAVE_TYPE_SGX) &&
          (enclave_type != OE_ENCLAVE_TYPE_AUTO)) ||
-        (flags & OE_ENCLAVE_FLAG_RESERVED) || config || config_size > 0)
+        (setting_count > 0 && settings == NULL) ||
+        (setting_count == 0 && settings != NULL) ||
+        (flags & OE_ENCLAVE_FLAG_RESERVED))
         OE_RAISE(OE_INVALID_PARAMETER);
 
     /* Allocate and zero-fill the enclave structure */
@@ -724,27 +796,16 @@ oe_result_t oe_create_enclave(
     /* Enclave initialization invokes global constructors which could make
      * ocalls. Therefore setup ocall table prior to initialization. */
     enclave->ocalls = (const oe_ocall_func_t*)ocall_table;
-    enclave->num_ocalls = ocall_table_size;
+    enclave->num_ocalls = ocall_count;
 
     /* Invoke enclave initialization. */
     OE_CHECK(_initialize_enclave(enclave));
 
+    /* Apply the list of settings to the enclave */
+    OE_CHECK(_configure_enclave(enclave, settings, setting_count));
+
     /* Setup logging configuration */
     oe_log_enclave_init(enclave);
-
-    /* Peform a two-way ping with the enclave. This function is a placeholder
-     * and will be removed in Part II of this PR.
-     * ATTN: remove this when other EDL calls are ready.
-     */
-    {
-        const int VALUE = 12345;
-        int retval;
-
-        OE_CHECK(oe_internal_ping_ecall(enclave, &retval, VALUE));
-
-        if (retval != VALUE)
-            OE_RAISE(OE_FAILURE);
-    }
 
     *enclave_out = enclave;
     result = OE_OK;
@@ -784,6 +845,9 @@ oe_result_t oe_terminate_enclave(oe_enclave_t* enclave)
 
     /* Remove this enclave from the global list. */
     oe_remove_enclave_instance(enclave);
+
+    /* Shut down the switchless manager */
+    OE_CHECK(oe_stop_switchless_manager(enclave));
 
     /* Clear the magic number */
     enclave->magic = 0;

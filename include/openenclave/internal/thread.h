@@ -8,24 +8,10 @@
 #include <openenclave/bits/result.h>
 #include <openenclave/bits/types.h>
 
-/*
-**==============================================================================
-**
-** oe_thread_wake_wait_args_t
-**
-**==============================================================================
-*/
-
-typedef struct _oe_thread_wake_wait_args
-{
-    const void* waiter_tcs;
-    const void* self_tcs;
-} oe_thread_wake_wait_args_t;
+typedef uint64_t oe_thread_t;
 
 #ifdef OE_BUILD_ENCLAVE
 OE_EXTERNC_BEGIN
-
-typedef uint64_t oe_thread_t;
 
 /*
  * Note that all the __impl[] fields in the below implementations are

@@ -71,7 +71,7 @@ oe_result_t oe_get_revocation_info(oe_get_revocation_info_args_t* args)
     params.crl_urls = args->crl_urls;
     params.crl_url_count = args->num_crl_urls;
 
-    if (get_current_logging_level() >= OE_LOG_LEVEL_INFO)
+    if (oe_get_current_logging_level() >= OE_LOG_LEVEL_INFO)
     {
         // If info tracing is enabled, install the logging function.
         OE_TRACE_INFO("input: fmspc = \n");
@@ -142,7 +142,7 @@ oe_result_t oe_get_revocation_info(oe_get_revocation_info_args_t* args)
     if (p == NULL)
         OE_RAISE(OE_OUT_OF_MEMORY);
 
-    args->host_out_buffer = p;
+    args->buffer = p;
 
     if (revocation_info->tcb_info != NULL)
     {
@@ -232,12 +232,12 @@ done:
     return result;
 }
 
-void oe_cleanup_get_revocation_info_args(oe_get_revocation_info_args_t* args)
+void oe_free_get_revocation_info_args(oe_get_revocation_info_args_t* args)
 {
     if (args)
     {
-        if (args->host_out_buffer)
-            free(args->host_out_buffer);
+        if (args->buffer)
+            free(args->buffer);
     }
 }
 
@@ -329,7 +329,7 @@ done:
     return result;
 }
 
-void oe_cleanup_qe_identity_info_args(oe_get_qe_identity_info_args_t* args)
+void oe_free_qe_identity_info_args(oe_get_qe_identity_info_args_t* args)
 {
     if (args)
     {
