@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #include <openenclave/enclave.h>
-#include <openenclave/internal/globals.h>
 #include <openenclave/internal/tests.h>
 #include <stdio.h>
 #include <string.h>
