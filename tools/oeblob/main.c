@@ -43,19 +43,21 @@ int write_file(const char* path, const void* data, size_t size)
 // clang-format off
 static const char USAGE[] =
 "\n"
-"Usage: %s ENCLAVE BLOB\n"
+"Usage: %s BLOB INFILE OUTFILE\n"
 "\n"
 "Where:\n"
-"    ENCLAVE - name of an enclave image file.\n"
-"    BLOB - name of blob file.\n"
+"    BLOBFILE - name of the blob file.\n"
+"    INFILE - the input enclave image file.\n"
+"    OUTFILE - the output enclave image file.\n"
 "\n"
-"Adds a new section named '.oeblob' to an enclave image file that contains\n"
-"the blob file. The enclave loader includes this section in the enclave code\n"
-"measurement (MRENCLAVE). Enclaves can access the blob at runtime through the\n"
-"the following definitions:\n"
+"Adds a blob to a new section of an enclave image file. The new section is\n"
+"named '.oeblob' of type PROGBITS. The enclave loader includes this section\n"
+"in the enclave code measurement (MRENCLAVE). Enclaves can access the blob\n"
+"at runtime by calling these functions.\n"
 "\n"
-"    extern void* oe_blob_ptr;\n"
-"    extern size_t oe_size;\n"
+"    extern const void* __oe_get_blob_base(void);\n"
+"    extern const void* __oe_get_blob_end(void);\n"
+"    extern size_t __oe_get_blob_size(void);\n"
 "\n"
 "\n";
 // clang-format on
@@ -63,8 +65,9 @@ static const char USAGE[] =
 int main(int argc, const char* argv[])
 {
     int ret = 1;
-    const char* enclave;
-    const char* blob;
+    const char* infile;
+    const char* outfile;
+    const char* blobfile;
     elf64_t elf;
     bool loaded = false;
     void* data = NULL;
@@ -74,7 +77,7 @@ int main(int argc, const char* argv[])
     arg0 = argv[0];
 
     /* Check usage. */
-    if (argc != 3)
+    if (argc != 4)
     {
         fprintf(stderr, USAGE, argv[0]);
         goto done;
@@ -84,46 +87,38 @@ int main(int argc, const char* argv[])
     setenv("OE_LOG_LEVEL", "NONE", 1);
 
     /* Collect the options. */
-    enclave = argv[1];
-    blob = argv[2];
+    blobfile = argv[1];
+    infile = argv[2];
+    outfile = argv[3];
 
     /* Load the ELF-64 object */
     {
-        if (elf64_load(enclave, &elf) != 0)
-            _err("failed to load enclave image: %s", enclave);
+        if (elf64_load(infile, &elf) != 0)
+            _err("failed to load enclave image: %s", infile);
 
         loaded = true;
     }
 
-    /* Load the blob. */
-    if (__oe_load_file(blob, 0, &data, &size) != OE_OK)
-        _err("failed to load blob file: %s", blob);
+    /* Load the blob file into memory. */
+    if (__oe_load_file(blobfile, 0, &data, &size) != OE_OK)
+        _err("failed to load blob file: %s", blobfile);
 
-    /* Remove the section if it already exists. */
+    /* Fail if the section already exists. */
     {
         unsigned char* secdata;
         size_t secsize;
 
         if (elf64_find_section(&elf, SECTION_NAME, &secdata, &secsize) == 0)
-        {
-            if (elf64_remove_section(&elf, SECTION_NAME) != 0)
-            {
-                _err("failed to remove '%s' section", SECTION_NAME);
-            }
-        }
+            _err("section already exists: '%s'", SECTION_NAME);
     }
 
     /* Add the new section. */
-    if (elf64_add_section(&elf, SECTION_NAME, SHT_NOTE, data, size) != 0)
-    {
-        _err("failed to add '%s' section", SECTION_NAME);
-    }
+    if (elf64_add_section(&elf, SECTION_NAME, SHT_PROGBITS, data, size) != 0)
+        _err("failed to add section: '%s'", SECTION_NAME);
 
     /* Rewrite the enclave file. */
-    if (write_file(enclave, elf.data, elf.size) != 0)
-    {
-        _err("failed to write enclave image: '%s'", enclave);
-    }
+    if (write_file(outfile, elf.data, elf.size) != 0)
+        _err("failed to write enclave image: '%s'", outfile);
 
     ret = 0;
 

@@ -50,6 +50,7 @@ typedef struct _oe_enclave_elf_image
     oe_elf_segment_t* segments;
     size_t num_segments;
     void* reloc_data;
+    void* blob_data;
 } oe_enclave_elf_image_t;
 
 typedef struct _oe_enclave_pe_image
@@ -80,6 +81,9 @@ struct _oe_enclave_image
 
     /* size of relocation */
     size_t reloc_size;
+
+    /* size of blob section */
+    size_t blob_size;
 
     /* Thread-local storage .tdata section */
     uint64_t tdata_rva;

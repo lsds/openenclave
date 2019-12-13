@@ -127,6 +127,8 @@ extern volatile const oe_sgx_enclave_properties_t oe_enclave_properties_sgx;
 static volatile uint64_t _enclave_rva;
 static volatile uint64_t _reloc_rva;
 static volatile uint64_t _reloc_size;
+static volatile uint64_t _blob_rva;
+static volatile uint64_t _blob_size;
 
 #endif
 
@@ -193,6 +195,39 @@ size_t __oe_get_reloc_size()
     return _reloc_size;
 #else
     return oe_enclave_properties_sgx.image_info.reloc_size;
+#endif
+}
+
+/*
+**==============================================================================
+**
+** blob boundaries:
+**
+**==============================================================================
+*/
+
+const void* __oe_get_blob_base()
+{
+    const unsigned char* base = __oe_get_enclave_base();
+
+#if defined(__linux__)
+    return base + _blob_rva;
+#else
+#error "unsupported"
+#endif
+}
+
+const void* __oe_get_blob_end()
+{
+    return (const uint8_t*)__oe_get_blob_base() + __oe_get_blob_size();
+}
+
+size_t __oe_get_blob_size()
+{
+#if defined(__linux__)
+    return _blob_size;
+#else
+#error "unsupported"
 #endif
 }
 

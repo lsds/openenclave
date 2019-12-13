@@ -407,7 +407,8 @@ static oe_result_t _calculate_size(
     const oe_enclave_image_t* image,
     size_t* image_size)
 {
-    *image_size = image->image_size + image->reloc_size;
+    *image_size = image->image_size + image->reloc_size +
+                  oe_round_up_to_page_size(image->blob_size);
     return OE_OK;
 }
 
@@ -443,6 +444,8 @@ static oe_result_t _unload(oe_enclave_image_t* image)
 **         [DATA-PAGES]: flags=reg|w|r content=(ELF segment)
 **
 **     [RELOCATION-PAGES]:
+**
+**     [BLOB-PAGES]: flags=reg|r content=(.oeblob section)
 **
 **     [HEAP-PAGES]: flags=reg|w|r content=0x00000000
 **
@@ -503,6 +506,68 @@ static oe_result_t _add_relocation_pages(
             OE_CHECK(oe_sgx_load_enclave_data(
                 context, enclave_addr, addr, src, flags, extend));
             (*vaddr) += sizeof(oe_page_t);
+        }
+    }
+
+    result = OE_OK;
+
+done:
+    return result;
+}
+
+static oe_result_t _add_blob_pages(
+    oe_sgx_load_context_t* context,
+    uint64_t enclave_addr,
+    const void* blob_data,
+    const size_t blob_size,
+    uint64_t* vaddr)
+{
+    oe_result_t result = OE_UNEXPECTED;
+
+    if (!context || !vaddr)
+        OE_RAISE(OE_INVALID_PARAMETER);
+
+    /* Add any blob pages as regular-read-only pages. */
+    if (blob_data && blob_size)
+    {
+        const uint8_t* p = (const uint8_t*)blob_data;
+        size_t n = blob_size;
+
+        /* Add whole pages. */
+        while (n > OE_PAGE_SIZE)
+        {
+            const uint64_t addr = enclave_addr + *vaddr;
+            const uint64_t src = (uint64_t)p;
+            const uint64_t flags = SGX_SECINFO_REG | SGX_SECINFO_R;
+            const bool extend = true;
+
+            OE_CHECK(oe_sgx_load_enclave_data(
+                context, enclave_addr, addr, src, flags, extend));
+
+            (*vaddr) += OE_PAGE_SIZE;
+
+            /* Advance to the next page. */
+            p += OE_PAGE_SIZE;
+            n -= OE_PAGE_SIZE;
+        }
+
+        /* Add remaining bytes. */
+        if (n)
+        {
+            uint8_t page[OE_PAGE_SIZE];
+            const uint64_t addr = enclave_addr + *vaddr;
+            const uint64_t src = (uint64_t)page;
+            const uint64_t flags = SGX_SECINFO_REG | SGX_SECINFO_R;
+            const bool extend = true;
+
+            /* Copy remaining bytes followed by zero-padding. */
+            memcpy(page, p, n);
+            memset(page + n, 0, OE_PAGE_SIZE - n);
+
+            OE_CHECK(oe_sgx_load_enclave_data(
+                context, enclave_addr, addr, src, flags, extend));
+
+            (*vaddr) += OE_PAGE_SIZE;
         }
     }
 
@@ -595,6 +660,14 @@ static oe_result_t _add_pages(
         image->reloc_size,
         vaddr));
 
+    /* Add the .oeblob section pages if any. */
+    OE_CHECK(_add_blob_pages(
+        context,
+        enclave->addr,
+        image->u.elf.blob_data,
+        image->blob_size,
+        vaddr));
+
     result = OE_OK;
 
 done:
@@ -679,16 +752,25 @@ static oe_result_t _patch(oe_enclave_image_t* image, size_t enclave_end)
     OE_CHECK(_get_symbol_rva(image, "_enclave_rva", &enclave_rva));
     OE_CHECK(_set_uint64_t_symbol_value(image, "_enclave_rva", enclave_rva));
 
+    /* Keep track of the current rva starting at the end of image. */
+    size_t rva = image->image_size;
+
     /* reloc right after image */
-    oeprops->image_info.reloc_rva = image->image_size;
+    oeprops->image_info.reloc_rva = rva;
     oeprops->image_info.reloc_size = image->reloc_size;
     OE_CHECK(
         _set_uint64_t_symbol_value(image, "_reloc_rva", image->image_size));
     OE_CHECK(
         _set_uint64_t_symbol_value(image, "_reloc_size", image->reloc_size));
+    rva += image->reloc_size;
 
-    /* heap right after image */
-    oeprops->image_info.heap_rva = image->image_size + image->reloc_size;
+    /* blob right after reloc */
+    OE_CHECK(_set_uint64_t_symbol_value(image, "_blob_rva", rva));
+    OE_CHECK(_set_uint64_t_symbol_value(image, "_blob_size", image->blob_size));
+    rva += oe_round_up_to_page_size(image->blob_size);
+
+    /* heap right after blob */
+    oeprops->image_info.heap_rva = rva;
 
     if (image->tdata_size)
     {
@@ -787,6 +869,19 @@ oe_result_t oe_load_elf_enclave_image(
             &image->u.elf.elf, &image->u.elf.reloc_data, &image->reloc_size) !=
         0)
         OE_RAISE(OE_FAILURE);
+
+    /* Save pointer to blob data and blob size */
+    {
+        elf64_t* elf = &image->u.elf.elf;
+        unsigned char* data;
+        size_t size;
+
+        if (elf64_find_section(elf, ".oeblob", &data, &size) == 0)
+        {
+            image->u.elf.blob_data = data;
+            image->blob_size = size;
+        }
+    }
 
     if (oe_get_current_logging_level() >= OE_LOG_LEVEL_VERBOSE)
         _dump_relocations(image->u.elf.reloc_data, image->reloc_size);
