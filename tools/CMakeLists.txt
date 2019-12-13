@@ -4,7 +4,6 @@
 add_subdirectory(oeedger8r)
 
 if (OE_SGX)
-add_subdirectory(oeblob)
 add_subdirectory(oesgx)
 add_subdirectory(oesign)
 add_subdirectory(oesethash)
