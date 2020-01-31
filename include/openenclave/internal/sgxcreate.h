@@ -5,9 +5,11 @@
 #define _OE_SGXCREATE_H
 
 #include <openenclave/bits/result.h>
+#include <openenclave/internal/types.h>
 #include "crypto/sha.h"
 #include "load.h"
 #include "sgxtypes.h"
+#include "types.h"
 
 OE_EXTERNC_BEGIN
 
@@ -75,8 +77,7 @@ oe_result_t oe_sgx_build_enclave(
     oe_sgx_load_context_t* context,
     const char* path,
     const oe_sgx_enclave_properties_t* properties,
-    uint8_t* user_data,
-    uint32_t user_data_size,
+    oe_eeid_t* eeid,
     oe_enclave_t* enclave);
 
 /**
