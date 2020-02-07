@@ -1,7 +1,5 @@
 # Building the Open Enclave SDK
 
-This document contains the Linux build instructions. For the experimental Windows build instructions, see [here](/docs/GettingStartedDocs/GettingStarted.Windows.md).
-
 #### 1. Determine the SGX support level on your development/target system
 
 The Open Enclave SDK runs on Linux systems, whether those systems are inside virtual machines or directly on top of the bare metal machines.
@@ -21,7 +19,7 @@ Please refer to the following [documentation](/docs/GettingStartedDocs/SGXSuppor
    - `SGX1+FLC`: In this mode, the Open Enclave SDK takes advantage of the Flexible Launch
                  Control mode for better managing architectural enclaves.
 
-   - `Simulator`: Open Enclave comes with a SGX software simulator that simulates a subset of
+   - `Simulation`: Open Enclave comes with an SGX software simulation mode that simulates a subset of
                   the SGX feature set. This simulator enables the Open Enclave SDK to run on
                   systems without actual SGX hardware support.
 
@@ -31,27 +29,31 @@ Please refer to the following [documentation](/docs/GettingStartedDocs/SGXSuppor
    |:---------------------------|:-----------------------------------:|
    | SGX1+FLC                   | SGX1+FLC                            |
    | SGX1                       | SGX1 or SGX1+FLC                    |
-   | Simulator                  | Any level                           |
+   | Simulation                  | Any level                           |
 
-   On Linux, if your target system does not have any SGX hardware support, you may want to choose "Simulator" mode.
-   On Windows, Open Enclave SDK does not support "Simulator" mode.
+   On Linux, if your target system does not have any SGX hardware support, you may want to choose simulation.
+
+   On Windows, Open Enclave SDK does not support simulation mode.
 
 #### 3. Build, install and run
 
    Choose an operating mode that is compatible with the SGX support level of your target system.
    The links below contain instructions on how to set up Open Enclave SDK environment for a given mode.
 
-On Linux
-  - [Setup Open Enclave SDK for SGX1+FLC mode](SGX1FLCGettingStarted.md)
-  - [Setup Open Enclave SDK for SGX1 mode](SGX1GettingStarted.md)
-  - [Setup Open Enclave SDK for Simulator mode](SimulatorGettingStarted.md)
+On Linux:
+  - [Setup Open Enclave SDK for SGX1+FLC](SGX1FLCGettingStarted.md)
+  - [Setup Open Enclave SDK for SGX1](SGX1GettingStarted.md)
+  - [Setup Open Enclave SDK for simulation mode](SimulatorGettingStarted.md)
 
-On Windows
- - [Set up Open Enclave SDK](/docs/GettingStartedDocs/GettingStarted.Windows.md)
+On Windows:
+ - [Set up Open Enclave SDK for SGX1+FLC](WindowsSGX1FLCGettingStarted.md)
+ - [Set up Open Enclave SDK for SGX1](WindowsSGX1GettingStarted.md)
+ - Simulation mode is not supported on Windows
 
 ## Samples
 
-Assuming you install the SDK as below (also described in the [basic install section](InstallInfo.md#basic-install))
+### On Linux
+Assuming you install the SDK as below (also described in the [basic install section](LinuxInstallInfo.md#basic-install-on-linux))
 
 ```bash
 cmake -DCMAKE_INSTALL_PREFIX=~/openenclave ..
@@ -60,9 +62,20 @@ make install
 
 Open Enclave samples can be found in ~/openenclave/share/openenclave/samples
 
-See [Open Enclave samples](/samples/README.md) for details.
+See [Open Enclave samples](/samples/README_Linux.md) for details.
+
+### On Windows
+
+Assuming you install the SDK as below (also described in the [basic install section](WindowsInstallInfo.md#basic-install-on-windows))
+
+```bash
+cmake .. -G  Ninja -DNUGET_PACKAGE_PATH=C:\oe_prereqs -DCMAKE_INSTALL_PREFIX:PATH=C:\openenclave"
+ninja install
+```
+Open Enclave samples can be found in c:\openenclave\share\openenclave\samples
+
+See [Open Enclave samples](/samples/README_Windows.md) for details.
 
 ## Using the Open Enclave SDK
 
-Additional information such as the [API References](/docs/GettingStartedDocs/using_oe_sdk.md#api-references)
-can be found in the [documentation on using the Open Enclave SDK](/docs/GettingStartedDocs/using_oe_sdk.md).
+Additional information such as the API Reference and supported libs can be found [here](/docs/GettingStartedDocs/APIs_and_Libs.md).

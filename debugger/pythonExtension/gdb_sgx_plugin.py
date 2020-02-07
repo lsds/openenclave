@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 from __future__ import print_function
@@ -78,7 +78,7 @@ class oe_debug_enclave_t:
 
 
 # This constant definition must align with the OE enclave layout.
-TD_OFFSET_FROM_TCS =  0X4000
+TD_OFFSET_FROM_TCS =  0X5000
 
 # This constant definition must align with TD structure in internal\sgxtypes.h.
 TD_CALLSITE_OFFSET = 0XF0

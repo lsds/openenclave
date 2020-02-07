@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <assert.h>
@@ -265,6 +265,7 @@ oe_result_t oe_load_pe_enclave_image(
     PIMAGE_SECTION_HEADER section_hdr;
     const IMAGE_DATA_DIRECTORY* idd;
     uint32_t i;
+    DWORD old_protection;
 
     memset(image, 0, sizeof(oe_enclave_image_t));
     image->type = OE_IMAGE_TYPE_PE;
@@ -308,7 +309,10 @@ oe_result_t oe_load_pe_enclave_image(
 
     /* change protection to r/w */
     if (!VirtualProtect(
-            image->image_base, image->image_size, PAGE_READWRITE, &i))
+            image->image_base,
+            image->image_size,
+            PAGE_READWRITE,
+            &old_protection))
     {
         OE_RAISE(OE_FAILURE);
     }

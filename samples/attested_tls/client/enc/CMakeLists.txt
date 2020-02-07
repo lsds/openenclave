@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 # Use the edger8r to generate C bindings from the EDL file.
@@ -18,7 +18,13 @@ add_executable(tls_client_enc
 	       cert_verifier.cpp
 	       identity_verifier.cpp
 	       ../../common/utility.cpp
-	       ${CMAKE_CURRENT_BINARY_DIR}/tls_client_t.c)
+         ${CMAKE_CURRENT_BINARY_DIR}/tls_client_t.c)
+
+add_dependencies(tls_client_enc tls_server_sign_enc)
+
+if (WIN32)
+  maybe_build_using_clangw(tls_client_enc)
+endif ()
 
 target_compile_definitions(tls_client_enc PUBLIC OE_API_VERSION=2)
 

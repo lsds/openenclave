@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _OE_CALLS_H
@@ -75,6 +75,7 @@ typedef enum _oe_func
     OE_ECALL_INIT_ENCLAVE,
     OE_ECALL_CALL_ENCLAVE_FUNCTION,
     OE_ECALL_VIRTUAL_EXCEPTION_HANDLER,
+    OE_ECALL_INIT_CONTEXT_SWITCHLESS,
     /* Caution: always add new ECALL function numbers here */
     OE_ECALL_MAX,
 
@@ -85,6 +86,7 @@ typedef enum _oe_func
     OE_OCALL_FREE,
     OE_OCALL_SLEEP,
     OE_OCALL_GET_TIME,
+    OE_OCALL_WAKE_HOST_WORKER,
     /* Caution: always add new OCALL function numbers here */
     OE_OCALL_MAX, /* This value is never used */
 

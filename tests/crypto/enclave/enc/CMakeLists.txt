@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 oeedl_file(../crypto.edl enclave gen)
@@ -21,7 +21,7 @@ set(SRCS
 if (OE_SGX)
     list(APPEND SRCS
         ../../../../common/sgx/rand.S
-        ../../rdrand_test.c)
+        ../../cpu_entropy_test.c)
 endif ()
 
 add_enclave(TARGET cryptoenc UUID f0be7db0-ce7c-4dc4-b8c8-b161f4216225

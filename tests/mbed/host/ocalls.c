@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <assert.h>
@@ -24,4 +24,9 @@ ssize_t mbed_test_read(int fd, char* buf, size_t buf_len)
 int mbed_test_close(int fd)
 {
     return close(fd);
+}
+
+int mbed_test_lseek(int fd, int offset, int whence)
+{
+    return lseek(fd, offset, whence);
 }

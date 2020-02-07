@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <assert.h>
@@ -80,15 +80,13 @@ static bool _is_valid_elf64(const elf64_t* elf)
         return false;
 
     /* Ensure that multiplying header size and num entries won't overflow. */
-    static_assert(
+    OE_STATIC_ASSERT(
         sizeof(uint64_t) >=
-            sizeof(header->e_phentsize) + sizeof(header->e_phnum),
-        "e_phentsize or e_phnum is too large");
+        sizeof(header->e_phentsize) + sizeof(header->e_phnum));
 
-    static_assert(
+    OE_STATIC_ASSERT(
         sizeof(uint64_t) >=
-            sizeof(header->e_shentsize) + sizeof(header->e_shnum),
-        "e_shentsize or e_shnum is too large");
+        sizeof(header->e_shentsize) + sizeof(header->e_shnum));
 
     uint64_t size = (uint64_t)header->e_phentsize * header->e_phnum;
     uint64_t end;
@@ -284,7 +282,7 @@ int elf64_load(const char* path, elf64_t* elf)
     if (fd == -1 || _fstat64(fd, &statbuf) != 0)
         goto done;
 
-    if (!(statbuf.st_mode & _S_IFREG) != 0)
+    if ((statbuf.st_mode & _S_IFREG) == 0)
         goto done;
 #else
     fd = fileno(is);
@@ -321,7 +319,7 @@ done:
     if (is)
         fclose(is);
 
-    if (rc != 0)
+    if (rc != 0 && elf)
     {
         free(elf->data);
         memset(elf, 0, sizeof(elf64_t));
@@ -1652,9 +1650,7 @@ int elf64_add_section(
         }
 
         /* Update the size of the .shstrtab section */
-        static_assert(
-            sizeof(namesize) == sizeof(uint64_t),
-            "sizeof(namesize) != sizeof(uint64_t)");
+        OE_STATIC_ASSERT(sizeof(namesize) == sizeof(uint64_t));
 
         if (oe_safe_add_u64(
                 shdr->sh_size, (uint64_t)namesize, &shdr->sh_size) != OE_OK)

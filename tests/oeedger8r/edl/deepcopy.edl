@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 enclave {
@@ -107,6 +107,9 @@ enclave {
 
     // Test handling of null values.
     public void deepcopy_null([in, out, count=1] CountStruct* s);
+
+    // Test that it is only copied in, not out.
+    public void deepcopy_in([in, count=1] CountStruct* s);
 
     // Deep copy of one `CountStruct` with an embedded array out
     // should take place.

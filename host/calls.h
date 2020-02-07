@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <openenclave/edger8r/host.h>
@@ -16,5 +16,7 @@ typedef struct _ocall_table
 } ocall_table_t;
 
 extern ocall_table_t _ocall_tables[];
+
+oe_result_t oe_handle_call_host_function(uint64_t arg, oe_enclave_t* enclave);
 
 #endif /* OE_HOST_CALLS_H */

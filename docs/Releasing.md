@@ -4,15 +4,19 @@ Open Enclave SDK Release Procedures
 This document covers how we handle creating a release. Let's look at it from an
 example:
 
+Selecting a Release Manager
+---------------------------
+
+The Community Governance Committee will select a release manager from one of the
+Committers by submitting a Pull Request that adds a "Release" tag to that
+Committer's "Area" in [Committers.md](Committers.md).
+
 Version Bump
 ------------
 
 > A note on naming: please prepend the `v` for consistency. Tags are `v0.7.0`
 > and branches are `v0.7.x`. We follow [Semantic
 > Versioning](https://semver.org/spec/v2.0.0.html).
-
-We want to release `v0.7.0` in about a week, so we choose a release manager from
-the committers.
 
 The initial announcement of the upcoming release will be a PR by the release
 manager to the `master` branch with the commit to bump the [VERSION
@@ -97,7 +101,7 @@ release. These notes should be suitable for a blog post.
 Community Approval
 ------------------
 
-See the [Governance Model](GovernanceModel.md#community-approval-of-releases)
+See the [Governance Model](Governance.md#community-approval-of-releases)
 documentation for the necessary steps to approve the release with the community.
 
 GitHub Release and Git Tag Creation
@@ -146,5 +150,5 @@ notes, and any social media we currently use).
 Servicing
 ---------
 
-See the [Governance Model](GovernanceModel.md#servicing-of-releases)
+See the [Governance Model](Governance.md#servicing-of-releases)
 documentation for our intended servicing model.

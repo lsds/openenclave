@@ -1,13 +1,15 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include "../calls.h"
+#include <openenclave/bits/eeid.h>
 #include <openenclave/bits/safecrt.h>
 #include <openenclave/bits/safemath.h>
 #include <openenclave/corelibc/stdlib.h>
 #include <openenclave/corelibc/string.h>
 #include <openenclave/edger8r/enclave.h>
 #include <openenclave/enclave.h>
+#include <openenclave/internal/atomic.h>
 #include <openenclave/internal/calls.h>
 #include <openenclave/internal/fault.h>
 #include <openenclave/internal/globals.h>
@@ -18,10 +20,13 @@
 #include <openenclave/internal/sgxtypes.h>
 #include <openenclave/internal/thread.h>
 #include <openenclave/internal/trace.h>
+#include <openenclave/internal/types.h>
 #include <openenclave/internal/utils.h>
+#include "../../../host/sgx/sgxmeasure.h"
 #include "../../sgx/report.h"
+#include "../arena.h"
 #include "../atexit.h"
-#include "../shm.h"
+#include "../switchlesscalls.h"
 #include "asmdefs.h"
 #include "cpuid.h"
 #include "init.h"
@@ -123,6 +128,57 @@ extern bool oe_disable_debug_malloc_check;
 **==============================================================================
 */
 
+static oe_result_t _oe_check_eeid()
+{
+    oe_result_t result = OE_OK;
+
+    const oe_eeid_t* eeid = (const oe_eeid_t*)__oe_get_eeid_base();
+    const void* enclave_base = __oe_get_enclave_base();
+
+    if (eeid != enclave_base)
+    {
+        oe_sha256_context_t hctx;
+        oe_sha256_restore(&hctx, eeid->hash_state_H, eeid->hash_state_N);
+
+        size_t eeid_sz = __oe_get_eeid_size();
+        size_t num_pages = oe_round_up_to_page_size(eeid_sz) / OE_PAGE_SIZE;
+        oe_page_t* pages = (oe_page_t*)eeid;
+        uint64_t addr = (uint64_t)eeid;
+        for (size_t i = 0; i < num_pages; i++)
+        {
+            OE_CHECK(oe_sgx_measure_load_enclave_data(
+                &hctx,
+                (uint64_t)enclave_base,
+                addr,
+                (uint64_t)&pages[i],
+                SGX_SECINFO_REG | SGX_SECINFO_R,
+                true));
+
+            addr += sizeof(oe_page_t);
+        }
+
+        OE_SHA256 ext_mrenclave;
+        oe_sha256_final(&hctx, &ext_mrenclave);
+
+        // char str_old[OE_SHA256_SIZE * 2 + 1], str_new[OE_SHA256_SIZE * 2 +
+        // 1]; oe_hex_string(str_old, OE_SHA256_SIZE * 2 + 1,
+        // eeid->sigstruct.enclavehash, OE_SHA256_SIZE); oe_host_printf(" | ***
+        // OLD: %s\n", str_old); oe_hex_string(str_new, OE_SHA256_SIZE * 2 + 1,
+        // th.buf, OE_SHA256_SIZE); oe_host_printf(" | *** NEW: %s\n", str_new);
+
+        sgx_report_t sgx_report;
+        OE_CHECK(sgx_create_report(NULL, 0, NULL, 0, &sgx_report));
+
+        if (memcmp(
+                ext_mrenclave.buf, sgx_report.body.mrenclave, OE_SHA256_SIZE) !=
+            0)
+            OE_RAISE(OE_VERIFY_FAILED);
+    }
+
+done:
+    return result;
+}
+
 /*
 **==============================================================================
 **
@@ -168,6 +224,9 @@ static oe_result_t _handle_init_enclave(uint64_t arg_in)
             /* Call global constructors. Now they can safely use simulated
              * instructions like CPUID. */
             oe_call_init_functions();
+
+            /* Check that the EEI data has not been tampered with */
+            OE_CHECK(_oe_check_eeid());
 
             /* DCLP Release barrier. */
             OE_ATOMIC_MEMORY_BARRIER_RELEASE();
@@ -338,6 +397,19 @@ static void _handle_ecall(
     uint64_t* output_arg1,
     uint64_t* output_arg2)
 {
+    /* To keep status of td consistent before and after _handle_ecall, td_init
+     is moved into _handle_ecall. In this way _handle_ecall will not trigger
+     stack check fail by accident. Of couse not all function have the
+     opportunity to keep such consistency. Such basic functions are moved to a
+     separate source file and the stack protector is disabled by force
+     through fno-stack-protector option. */
+
+    /* Initialize thread data structure (if not already initialized) */
+    if (!td_initialized(td))
+    {
+        td_init(td);
+    }
+
     oe_result_t result = OE_OK;
 
     /* Insert ECALL context onto front of td_t.ecalls list */
@@ -386,8 +458,6 @@ static void _handle_ecall(
         case OE_ECALL_CALL_ENCLAVE_FUNCTION:
         {
             arg_out = _handle_call_enclave_function(arg_in);
-            /* clear up shared memory upon ERET */
-            oe_shm_clear();
             break;
         }
         case OE_ECALL_DESTRUCTOR:
@@ -397,9 +467,6 @@ static void _handle_ecall(
 
             /* Call all finalization functions */
             oe_call_fini_functions();
-
-            /* Free shared memory upon destroying enclave */
-            oe_shm_destroy();
 
 #if defined(OE_USE_DEBUG_MALLOC)
 
@@ -421,6 +488,11 @@ static void _handle_ecall(
             arg_out = _handle_init_enclave(arg_in);
             break;
         }
+        case OE_ECALL_INIT_CONTEXT_SWITCHLESS:
+        {
+            arg_out = oe_handle_init_switchless(arg_in);
+            break;
+        }
         default:
         {
             /* No function found with the number */
@@ -430,6 +502,12 @@ static void _handle_ecall(
     }
 
 done:
+
+    /* Free shared memory arena before we clear TLS */
+    if (td->depth == 1)
+    {
+        oe_teardown_arena();
+    }
 
     /* Remove ECALL context from front of td_t.ecalls list */
     td_pop_callsite(td);
@@ -566,7 +644,7 @@ oe_result_t oe_call_host_function_by_table_id(
         OE_RAISE(OE_INVALID_PARAMETER);
 
     /* Initialize the arguments */
-    args = switchless ? oe_shm_calloc(sizeof(*args))
+    args = switchless ? oe_arena_calloc(1, sizeof(*args))
                       : oe_host_calloc(1, sizeof(*args));
 
     if (args == NULL)
@@ -585,9 +663,31 @@ oe_result_t oe_call_host_function_by_table_id(
     args->result = OE_UNEXPECTED;
 
     /* Call the host function with this address */
-    // TODO: for switchessless calls, push the job (wrapped in args) to an
-    // available worker thread, and wait for result
-    // if (!switchless)
+    if (switchless && oe_is_switchless_initialized())
+    {
+        oe_result_t post_result = oe_post_switchless_ocall(args);
+
+        // Fall back to regular OCALL if host worker threads are unavailable
+        if (post_result == OE_CONTEXT_SWITCHLESS_OCALL_MISSED)
+            OE_CHECK(
+                oe_ocall(OE_OCALL_CALL_HOST_FUNCTION, (uint64_t)args, NULL));
+        else
+        {
+            OE_CHECK(post_result);
+            // Wait until args.result is set by the host worker.
+            while (true)
+            {
+                OE_ATOMIC_MEMORY_BARRIER_ACQUIRE();
+                if (__atomic_load_n(&args->result, __ATOMIC_SEQ_CST) !=
+                    __OE_RESULT_MAX)
+                    break;
+
+                /* Yield to CPU */
+                asm volatile("pause");
+            }
+        }
+    }
+    else
     {
         OE_CHECK(oe_ocall(OE_OCALL_CALL_HOST_FUNCTION, (uint64_t)args, NULL));
     }
@@ -638,34 +738,6 @@ oe_result_t oe_call_host_function(
 /*
 **==============================================================================
 **
-** oe_switchless_call_host_function()
-** This is the preferred way to call host functions switchlessly.
-**
-**==============================================================================
-*/
-
-oe_result_t oe_switchless_call_host_function(
-    size_t function_id,
-    const void* input_buffer,
-    size_t input_buffer_size,
-    void* output_buffer,
-    size_t output_buffer_size,
-    size_t* output_bytes_written)
-{
-    return oe_call_host_function_by_table_id(
-        OE_UINT64_MAX,
-        function_id,
-        input_buffer,
-        input_buffer_size,
-        output_buffer,
-        output_buffer_size,
-        output_bytes_written,
-        true /* switchless */);
-}
-
-/*
-**==============================================================================
-**
 ** __oe_handle_main()
 **
 **     This function is called by oe_enter(), which is called by the EENTER
@@ -696,25 +768,27 @@ oe_result_t oe_switchless_call_host_function(
 **     used by a thread entering the enclave). Each thread section has the
 **     following layout:
 **
-**         +--------------------------------+
-**         | Guard Page                     |
-**         +--------------------------------+
-**         | Stack pages                    |
-**         +--------------------------------+
-**         | Guard Page                     |
-**         +--------------------------------+
-**         | TCS Page                       |
-**         +--------------------------------+
-**         | SSA (State Save Area) 0        |
-**         +--------------------------------+
-**         | SSA (State Save Area) 1        |
-**         +--------------------------------+
-**         | Guard Page                     |
-**         +--------------------------------+
-**         | GS page (contains thread data) |
-**         +--------------------------------+
+**         +----------------------------+
+**         | Guard Page                 |
+**         +----------------------------+
+**         | Stack pages                |
+**         +----------------------------+
+**         | Guard Page                 |
+**         +----------------------------+
+**         | TCS Page                   |
+**         +----------------------------+
+**         | SSA (State Save Area) 0    |
+**         +----------------------------+
+**         | SSA (State Save Area) 1    |
+**         +----------------------------+
+**         | Guard Page                 |
+**         +----------------------------+
+**         | Thread local storage       |
+**         +----------------------------+
+**         | FS/GS Page (td_t + tsp)    |
+**         +----------------------------+
 **
-**     EENTER sets the GS segment register to refer to the GS page before
+**     EENTER sets the FS segment register to refer to the FS page before
 **     calling this function.
 **
 **     If the enclave should fault, SGX saves the registers in the SSA slot
@@ -813,10 +887,6 @@ void __oe_handle_main(
     /* Get pointer to the thread data structure */
     td_t* td = td_from_tcs(tcs);
 
-    /* Initialize thread data structure (if not already initialized) */
-    if (!td_initialized(td))
-        td_init(td);
-
     /* If this is a normal (non-exception) entry */
     if (cssa == 0)
     {
@@ -900,7 +970,7 @@ void oe_abort(void)
     }
 
     // Free the shared memory pools
-    oe_shm_destroy();
+    oe_teardown_arena();
 
     // Return to the latest ECALL.
     _handle_exit(OE_CODE_ERET, 0, __oe_enclave_status);

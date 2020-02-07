@@ -1,10 +1,12 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 ---
 intel_sgx_packages:
   - "libsgx-enclave-common"
   - "libsgx-enclave-common-dev"
+
+intel_dcap_packages:
   - "libsgx-dcap-ql"
   - "libsgx-dcap-ql-dev"
 

@@ -9,7 +9,7 @@ filing an issue.
 General contribution guidance is included in this document. Additional guidance
 is defined in the documents linked below:
 
-- [Governance Model](GovernanceModel.md) describes how we intend our
+- [Governance Model](Governance.md) describes how we intend our
   collaboration to happen.
 - [Development Guide](DevelopmentGuide.md) describes the coding style and other
   development practices applied to this project.
@@ -39,7 +39,7 @@ You are encouraged to start a discussion with us through a GitHub issue before
 implementing any major changes. We want your contributions, but we also want to
 make sure the community is in agreement before you invest your time.
 
-You may be asked by maintainers to provide a design document before writing an
+You may be asked by Committers to provide a design document before writing an
 implementation. The simplest way to provide this is through a Pull Request to
 our repository with a Markdown style document (like this one) to the
 [docs/DesignDocs](DesignDocs) folder, and see its [readme](DesignDocs/README.md)
@@ -59,7 +59,7 @@ General Guidelines
 Please do:
 
 - **DO** open an issue for design discussion before making any major changes.
-- **DO** read our [Governance Model](GovernanceModel.md) to understand how our
+- **DO** read our [Governance Model](Governance.md) to understand how our
   community works.
 - **DO** follow our coding style described in the [Development Guide](
   DevelopmentGuide.md).
@@ -81,16 +81,18 @@ Please do:
 
 - **DO** submit all code changes via pull requests (PRs) rather than through a
   direct commit. PRs will be reviewed and potentially merged by the repo
-  maintainers after a peer review that includes at least one maintainer.
-- **DO** give PRs short-but-descriptive names (e.g. "Improve code coverage for
-  System.Console by 10%", not "Fix #1234").
+  Committers after a peer review that includes at least one Committer.
+- **DO** give PRs short but descriptive names (e.g. "Improve code coverage for
+  edger8r", not "Fix #1234").
 - **DO** add breaking changes, new features, deprecations, and bug
-  fixes to the [unreleased section of the
-  changelog](../CHANGELOG.md#unreleased).
+  fixes to the [unreleased section of the changelog](../CHANGELOG.md#unreleased).
 - **DO** refer to any relevant issues and include [keywords](
   https://help.github.com/articles/closing-issues-via-commit-messages/) that
   automatically close issues when the PR is merged.
-- **DO** tag any users that should know about and/or review the change.
+- **DO** tag any users that should know about and/or review the change. While
+   [CODEOWNERS](https://help.github.com/en/articles/about-code-owners) should
+   automatically tag reviewers, if you know of specific people that should look
+   at a PR, add them too.
 - **DO** ensure each commit successfully builds on all platforms and passes all
   unit tests.
 - **DO** rebase and squash unnecessary commits before opening the PR, so that
@@ -103,8 +105,8 @@ Please do:
 Please do not:
 
 - **DON'T** make PRs for style changes. For example, do not send PRs that are
-  focused on changing usage of ```Int32``` to ```int```. The team would prefer
-  to address these holistically with tooling.
+  focused on changing usage of `SomeVar` to `some_var`. The team would prefer
+  to address these with automated tooling.
 - **DON'T** surprise us with big pull requests. Instead, file an issue and start
   a discussion so we can agree on a direction before you invest a large amount
   of time.
@@ -120,11 +122,12 @@ Please do not:
   discuss it.
 - **DON'T** submit changes to the public API without filing an issue and
   discussing with us first.
-- **DON'T** submit "work in progress" PRs.  A PR should only be submitted when
-  it is considered ready for review and subsequent merging by the contributor.
+- **DON'T** use GitHub [_Draft_ pull
+  requests](https://help.github.com/en/articles/about-pull-requests#draft-pull-requests)
+  to share work-in-progress. This will suppress CODEOWNER notifications
 - **DON'T** fix merge conflicts using a merge commit. Prefer `git rebase`.
 - **DON'T** mix independent, unrelated changes in one PR. Separate real
-  product/test code changes from larger code formatting/dead code removal
+  project/test code changes from larger code formatting/dead code removal
   changes. Separate unrelated fixes into separate PRs, especially if they are
   in different libraries.
 
@@ -134,7 +137,7 @@ Merging Pull Requests
 Instead of merging pull requests with "the big green button" on GitHub, we use
 an automated system called [Bors](https://bors.tech/). The Bors bot is the
 _only_ approved mechanism of merging code to `master`. When a PR is ready to be
-merged, a maintainer will comment on it with `bors r+`.
+merged, a Committer will comment on it with `bors r+`.
 
 Bors will automatically:
 1. Apply the PR's commits to a `staging` branch based on `master`.
@@ -214,21 +217,70 @@ commits with incorrect author information, you can fix them as follows:
 1. Choose to `edit` the commits with incorrect authorship.
    1. For each edit, use `git commit --amend --reset-author`.
 
-Contributor License Agreement
------------------------------
+Developer Certificate of Origin
+------------------------------
+All contributions to the Open Enclave SDK must adhere to the terms of the
+[Developer Certificate of Origin (DCO)](https://developercertificate.org/):
 
-You must sign a [Microsoft Contribution License Agreement (CLA)](
-https://opensource.microsoft.com/pdf/microsoft-contribution-license-agreement.pdf)
-before your PR will be merged. This is a one-time requirement for Open Enclave.
-You can read more about [Contribution License Agreements (CLA)](
-http://en.wikipedia.org/wiki/Contributor_License_Agreement) on Wikipedia.
+> Developer Certificate of Origin
+> Version 1.1
+>
+> Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+> 1 Letterman Drive
+> Suite D4700
+> San Francisco, CA, 94129
+>
+> Everyone is permitted to copy and distribute verbatim copies of this
+> license document, but changing it is not allowed.
+>
+> Developer's Certificate of Origin 1.1
+>
+> By making a contribution to this project, I certify that:
+>
+> (a) The contribution was created in whole or in part by me and I
+>    have the right to submit it under the open source license
+>    indicated in the file; or
+>
+> (b) The contribution is based upon previous work that, to the best
+>    of my knowledge, is covered under an appropriate open source
+>    license and I have the right under that license to submit that
+>    work with modifications, whether created in whole or in part
+>    by me, under the same open source license (unless I am
+>    permitted to submit under a different license), as indicated
+>    in the file; or
+>
+> (c) The contribution was provided directly to me by some other
+>    person who certified (a), (b) or (c) and I have not modified
+>    it.
+>
+> (d) I understand and agree that this project and the contribution
+>    are public and that a record of the contribution (including all
+>    personal information I submit with it, including my sign-off) is
+>    maintained indefinitely and may be redistributed consistent with
+>    this project or the open source license(s) involved.
 
-You don't have to do this up-front. You can simply clone, fork, and submit your
-pull request as usual. When your pull request is created, it is classified by a
-CLA bot. If the change is trivial (for example, you just fixed a typo), then the
-PR is labelled with `cla-not-required`. Otherwise it's classified as
-`cla-required`. Once you signed a CLA, the current and all future pull requests
-will be labelled as `cla-signed`.
+Contributors need to sign-off that they adhere to these requirements by adding
+a `Signed-off-by:` line to each commit message:
+
+```
+Author: John Doe <johndoe@example.com>
+Date:   Wed Nov 6 11:30 2019 +0000
+
+    This is my commit message.
+
+    Signed-off-by: John Doe <johndoe@example.com>
+```
+
+Commits without this sign-off cannot be accepted, and the name in the
+`Signed-off-by` and `Author` fields should match.
+
+If you have configured your `user.name` and `user.email` via `git config`,
+the `Signed-off-by` line can be automatically appended to your commit message
+using the `-s` option:
+
+```
+$ git commit -s -m "This is my commit message."
+```
 
 Copying Files from Other Projects
 ---------------------------------
@@ -262,9 +314,5 @@ an issue to discuss the idea.
 Code of Conduct
 ---------------
 
-This project has adopted the [Microsoft Open Source Code of Conduct](
-https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](
-https://opensource.microsoft.com/codeofconduct/faq/) or contact 
-[opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional
-questions or comments.
+This project follows a [Code of Conduct](CodeOfConduct.md) adapted from the
+[Contributor Covenant v1.4](https://www.contributor-covenant.org).

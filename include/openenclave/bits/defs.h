@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _OE_BITS_DEFS_H
@@ -49,6 +49,12 @@
 #define OE_INLINE static __inline
 #elif __GNUC__
 #define OE_INLINE static __inline__
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define OE_RETURNS_TWICE __attribute__((returns_twice))
+#else
+#define OE_RETURNS_TWICE
 #endif
 
 #ifdef _MSC_VER

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 #include <openenclave/enclave.h>
 #include <openenclave/internal/raise.h>
@@ -14,10 +14,10 @@
 
 oe_result_t test_verify_tcb_info(
     const char* tcb_info,
-    oe_tcb_level_t* platform_tcb_level,
+    oe_tcb_info_tcb_level_t* platform_tcb_level,
     oe_parsed_tcb_info_t* parsed_tcb_info)
 {
-#ifdef OE_USE_LIBSGX
+#ifdef OE_LINK_SGX_DCAP_QL
     return oe_parse_tcb_info_json(
         (const uint8_t*)tcb_info,
         strlen(tcb_info) + 1,
@@ -33,7 +33,7 @@ oe_result_t test_verify_tcb_info(
 
 void test_minimum_issue_date(oe_datetime_t now)
 {
-#ifdef OE_USE_LIBSGX
+#ifdef OE_LINK_SGX_DCAP_QL
     static uint8_t* report;
     size_t report_size = 0;
     static uint8_t* report_v2;
@@ -94,6 +94,10 @@ void test_minimum_issue_date(oe_datetime_t now)
         oe_verify_report(report_v2, report_v2_size, NULL) ==
         OE_INVALID_REVOCATION_INFO);
 
+    // Restore default minimum CRL/TCB issue date
+    OE_TEST(
+        __oe_sgx_set_minimum_crl_tcb_issue_date(2017, 3, 17, 0, 0, 0) == OE_OK);
+
     oe_free_report(report);
     oe_free_report(report_v2);
 
@@ -118,16 +122,30 @@ void enclave_test_parse_report_negative()
     test_parse_report_negative();
 }
 
-void enclave_test_local_verify_report()
+void enclave_test_local_verify_report(oe_eeid_t* eeid)
 {
-    test_local_verify_report();
+    test_local_verify_report(eeid);
 }
 
-void enclave_test_remote_verify_report()
+void enclave_test_remote_verify_report(oe_eeid_t* eeid)
 {
-    test_remote_verify_report();
+    test_remote_verify_report(eeid);
 }
 
+void enclave_test_verify_report_with_collaterals()
+{
+    test_verify_report_with_collaterals();
+}
+
+#ifdef EEID_ENABLED
+OE_SET_ENCLAVE_SGX(
+    0,    /* ProductID */
+    0,    /* SecurityVersion */
+    true, /* AllowDebug */
+    0,    /* HeapPageCount */
+    0,    /* StackPageCount */
+    0);   /* TCSCount */
+#else
 OE_SET_ENCLAVE_SGX(
     0,    /* ProductID */
     0,    /* SecurityVersion */
@@ -135,3 +153,4 @@ OE_SET_ENCLAVE_SGX(
     1024, /* HeapPageCount */
     1024, /* StackPageCount */
     2);   /* TCSCount */
+#endif

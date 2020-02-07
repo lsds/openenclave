@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 include(add_dcap_client_target)
@@ -6,12 +6,13 @@ include(add_dcap_client_target)
 oeedl_file(../tests.edl host gen)
 add_executable(report_host host.cpp tcbinfo.cpp ../common/tests.cpp ${gen})
 
-if(USE_LIBSGX)
-    target_compile_definitions(report_host PRIVATE OE_USE_LIBSGX)
+if(HAS_QUOTE_PROVIDER)
+    target_compile_definitions(report_host PRIVATE OE_LINK_SGX_DCAP_QL)
 endif()
 
 add_custom_command(TARGET report_host
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../data ${CMAKE_CURRENT_BINARY_DIR}/../data
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../data_v2 ${CMAKE_CURRENT_BINARY_DIR}/../data_v2
 )
 
 target_include_directories(report_host PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common)

@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 ##==============================================================================
@@ -93,10 +93,12 @@ elseif (WIN32)
     crypto/bcrypt/rsa.c
     crypto/bcrypt/sha.c
     crypto/bcrypt/pem.c
+    crypto/bcrypt/util.c
     windows/hostthread.c)
 
   set(PLATFORM_SDK_ONLY_SRC
     ../3rdparty/mbedtls/mbedtls/library/bignum.c
+    ../3rdparty/mbedtls/mbedtls/library/platform_util.c #Used by bignum.c
     ../common/asn1.c
     ../common/cert.c
     crypto/bcrypt/cert.c
@@ -115,9 +117,27 @@ else()
   message(FATAL_ERROR "Unknown OS. Only supported OSes are Linux and Windows")
 endif()
 
+if (OE_SGX AND WIN32)
+  # Use clang to compile the oe_enter function that calls ENCLU.
+  # Windows debuggers (WinDbg and Visual Studio Debugger) require that the rbp
+  # is set up like a Linux x64 ABI style frame pointer by the oe_enter function.
+  # Since oe_enter function is setting up the frame-pointer, enter.c must be
+  # compiled with the -fomit-frame-pointer flag so that the compiler does not
+  # set up the frame pointer.
+  add_custom_command(
+     OUTPUT enter.obj
+     DEPENDS sgx/enter.c
+     COMMAND clang  -c -O2 -fomit-frame-pointer -m64
+             -I${PROJECT_SOURCE_DIR}/include
+             ${CMAKE_CURRENT_SOURCE_DIR}/sgx/enter.c
+             -o enter.obj)
+endif()
+
 # SGX specific files.
 if (OE_SGX)
   list(APPEND PLATFORM_HOST_ONLY_SRC
+    ../common/sgx/eeid.c
+    ../common/sgx/endorsements.c
     ../common/sgx/qeidentity.c
     ../common/sgx/quote.c
     ../common/sgx/report.c
@@ -125,6 +145,8 @@ if (OE_SGX)
     ../common/sgx/sgxcertextensions.c
     ../common/sgx/tcbinfo.c
     ../common/sgx/tlsverifier.c
+    ../common/sgx/verifier.c
+    ../common/sgx/verify_eeid.c
     sgx/hostverify_report.c
     sgx/sgxquoteprovider.c)
 
@@ -147,7 +169,8 @@ if (OE_SGX)
     sgx/sgxmeasure.c
     sgx/sgxquote.c
     sgx/sgxsign.c
-    sgx/sgxtypes.c)
+    sgx/sgxtypes.c
+    sgx/switchless.c)
 
   # OS specific as well.
   if (UNIX)
@@ -156,11 +179,11 @@ if (OE_SGX)
 
     list(APPEND PLATFORM_SDK_ONLY_SRC
       sgx/linux/aep.S
-      sgx/linux/aesm.c
-      sgx/linux/enter.S
-      sgx/linux/entersim.S
+      sgx/enter.c
       sgx/linux/exception.c
+      sgx/linux/hoststackbridge.c
       sgx/linux/sgxioctl.c
+      sgx/linux/switchless.c
       sgx/linux/xstate.c)
   else()
     list(APPEND PLATFORM_HOST_ONLY_SRC
@@ -168,10 +191,9 @@ if (OE_SGX)
 
     list(APPEND PLATFORM_SDK_ONLY_SRC
       sgx/windows/aep.asm
-      sgx/windows/aesm.c
-      sgx/windows/enter.asm
-      sgx/windows/entersim.asm
+      ${CMAKE_CURRENT_BINARY_DIR}/enter.obj
       sgx/windows/exception.c
+      sgx/windows/switchless.c
       sgx/windows/xstate.c)
   endif()
 
@@ -179,7 +201,7 @@ if (OE_SGX)
 elseif(OE_TRUSTZONE)
   list(APPEND PLATFORM_SDK_ONLY_SRC
     optee/log.c)
-  
+
   if (UNIX)
     list(APPEND PLATFORM_SDK_ONLY_SRC
       optee/linux/enclave.c)
@@ -191,17 +213,19 @@ elseif(OE_TRUSTZONE)
 endif()
 
 if (OE_SGX AND WIN32)
-  # oedebugrt is accessed via a bridge on Win32 and need not be linked.    
+  # oedebugrt is accessed via a bridge on Win32 and need not be linked.
   list(APPEND PLATFORM_SDK_ONLY_SRC
     sgx/windows/debugrtbridge.c)
 endif()
 
 # Common host verification files that work on any OS/architecture.
 list(APPEND PLATFORM_HOST_ONLY_SRC
+  ../common/attest_plugin.c
   ../common/datetime.c
   ../common/safecrt.c
   hexdump.c
   dupenv.c
+  fopen.c
   tests.c
   result.c
   traceh.c)
@@ -209,7 +233,6 @@ list(APPEND PLATFORM_HOST_ONLY_SRC
 # Common files that are used in the OE SDK only.
 list(APPEND PLATFORM_SDK_ONLY_SRC
   ../common/kdf.c
-  ../common/lockless_queue.c
   ../common/argv.c
   asym_keys.c
   calls.c
@@ -242,6 +265,16 @@ endif()
 if (OE_SGX AND UNIX)
   # Link oedebugrt static library.
   target_link_libraries(oehost PRIVATE oedebugrt)
+
+  # hoststackbridge and enter.c must be forced to retain the frame-pointer
+  # for ocall stack-stitching by using the -fno-omit-frame-pointer flag.
+  # Both are compiled with -O2 flag to retain the same generated assembly
+  # code in both debug and release builds.
+  set_source_files_properties(oehost
+    sgx/enter.c
+    sgx/linux/hoststackbridge.c
+    PROPERTIES
+    COMPILE_FLAGS "-O2 -fno-omit-frame-pointer")
 endif()
 
 add_dependencies(oehost syscall_untrusted_edl)
@@ -253,25 +286,25 @@ endif()
 # TODO: Replace these with `find_package` and add as dependencies to
 # the CMake package.
 if (UNIX)
-  if (NOT TARGET crypto)
+  if (NOT TARGET openenclave::crypto)
     find_library(CRYPTO_LIB NAMES crypto)
     if (NOT CRYPTO_LIB)
       message(FATAL_ERROR "-- Looking for crypto library - not found")
     else ()
       message("-- Looking for crypto library - found")
-      add_library(crypto SHARED IMPORTED)
-      set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${CRYPTO_LIB})
+      add_library(openenclave::crypto SHARED IMPORTED)
+      set_target_properties(openenclave::crypto PROPERTIES IMPORTED_LOCATION ${CRYPTO_LIB})
     endif ()
   endif ()
 
-  if (NOT TARGET dlib)
+  if (NOT TARGET openenclave::dl)
     find_library(DL_LIB NAMES dl)
     if (NOT DL_LIB)
       message(FATAL_ERROR "-- Looking for dl library - not found")
     else ()
       message("-- Looking for dl library - found")
-      add_library(dl SHARED IMPORTED)
-      set_target_properties(dl PROPERTIES IMPORTED_LOCATION ${DL_LIB})
+      add_library(openenclave::dl SHARED IMPORTED)
+      set_target_properties(openenclave::dl PROPERTIES IMPORTED_LOCATION ${DL_LIB})
     endif ()
   endif ()
 endif ()
@@ -279,8 +312,14 @@ endif ()
 find_package(Threads REQUIRED)
 
 if (UNIX)
-  target_link_libraries(oehost PRIVATE crypto dl Threads::Threads)
-  target_link_libraries(oehostverify PRIVATE crypto dl Threads::Threads)
+  target_link_libraries(oehost PRIVATE
+      openenclave::crypto
+      openenclave::dl
+      Threads::Threads)
+  target_link_libraries(oehostverify PRIVATE
+      openenclave::crypto
+      openenclave::dl
+      Threads::Threads)
 
   if (OE_TRUSTZONE)
     target_include_directories(oehost PRIVATE
@@ -290,7 +329,9 @@ if (UNIX)
 elseif (WIN32)
   target_include_directories(oehost PRIVATE
     ${CMAKE_SOURCE_DIR}/3rdparty/mbedtls/mbedtls/include)
-  target_link_libraries(oehost PRIVATE bcrypt Crypt32)
+  # Synchronization library is needed for WaitOnAddress/WakeByAddress functions
+  # used by switchless ocalls worker threads.
+  target_link_libraries(oehost PRIVATE bcrypt Crypt32 Synchronization)
   target_include_directories(oehostverify PRIVATE
     ${CMAKE_SOURCE_DIR}/3rdparty/mbedtls/mbedtls/include)
   target_link_libraries(oehostverify PRIVATE bcrypt Crypt32)
@@ -301,42 +342,55 @@ endif ()
 # For including edge routines.
 target_include_directories(oehost PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-if (USE_LIBSGX)
+if (OE_SGX)
+  # Always link with the EnclaveCommonAPI
   if (WIN32)
-    set(LIBPATHS
-      ${CMAKE_SOURCE_DIR}/prereqs/nuget/EnclaveCommonAPI/lib/native/x64-Release
-      ${CMAKE_SOURCE_DIR}/prereqs/nuget/DCAP_Components/build/lib/native/Libraries)
-    set(INCPATHS
-      "${CMAKE_SOURCE_DIR}/prereqs/nuget/EnclaveCommonAPI/Header Files"
-      "${CMAKE_SOURCE_DIR}/prereqs/nuget/DCAP_Components/build/Header Files")
-    set(WINSYSLOCATION
-       $ENV{WINDIR}/System32)
+    set(LIBPATHS ${NUGET_PACKAGE_PATH}/EnclaveCommonAPI/lib/native/x64-Release)
+    set(INCPATHS "${NUGET_PACKAGE_PATH}/EnclaveCommonAPI/Header Files")
   endif ()
-
-  find_library(LIBSGX_COMMON NAMES sgx_enclave_common PATHS ${LIBPATHS})
-  find_library(LIBSGX_QE NAMES sgx_dcap_ql PATHS ${LIBPATHS})
-  if (NOT LIBSGX_COMMON OR NOT LIBSGX_QE)
-    message(FATAL_ERROR "No SGX libraries found, aborting! Set -DUSE_LIBSGX=OFF to ignore.")
+  if (NOT LIBPATHS)
+    set(LIBPATHS "/usr")
+  endif ()
+  find_library(LIBSGX_COMMON NAMES sgx_enclave_common HINTS ${LIBPATHS})
+  if (NOT LIBSGX_COMMON)
+    message(FATAL_ERROR "Intel SGX EnclaveCommonAPI library not found, aborting!")
   endif ()
   add_library(sgx_enclave_common SHARED IMPORTED)
-  add_library(sgx_dcap_ql SHARED IMPORTED)
-
-  if (UNIX)
+  if (WIN32)
+     set_target_properties(sgx_enclave_common PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${INCPATHS}"
+        IMPORTED_LOCATION $ENV{WINDIR}/System32
+        IMPORTED_IMPLIB ${LIBSGX_COMMON})
+  elseif (UNIX)
     set_target_properties(sgx_enclave_common PROPERTIES IMPORTED_LOCATION ${LIBSGX_COMMON})
-    set_target_properties(sgx_dcap_ql PROPERTIES IMPORTED_LOCATION ${LIBSGX_QE})
-  elseif (WIN32)
-    set_target_properties(sgx_enclave_common PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${INCPATHS}"
-      IMPORTED_LOCATION ${WINSYSLOCATION}
-      IMPORTED_IMPLIB ${LIBSGX_COMMON})
-    set_target_properties(sgx_dcap_ql PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${INCPATHS}"
-      IMPORTED_LOCATION ${WINSYSLOCATION}
-      IMPORTED_IMPLIB ${LIBSGX_QE})
   endif ()
+  target_link_libraries(oehost PUBLIC $<BUILD_INTERFACE:sgx_enclave_common>)
 
-  target_link_libraries(oehost PUBLIC sgx_enclave_common sgx_dcap_ql)
-  target_compile_definitions(oehost PUBLIC OE_USE_LIBSGX)
+  # Optionally link in DCAP library
+  if (HAS_QUOTE_PROVIDER)
+    if (WIN32)
+      list(APPEND LIBPATHS
+          ${NUGET_PACKAGE_PATH}/DCAP_Components/build/lib/native/Libraries)
+      list(APPEND INCPATHS
+          "${NUGET_PACKAGE_PATH}/DCAP_Components/build/Header Files")
+    endif ()
+    find_library(LIBSGX_QE NAMES sgx_dcap_ql HINTS ${LIBPATHS})
+    if (NOT LIBSGX_QE)
+      message(FATAL_ERROR "No quote provider library found, aborting! Set -DHAS_QUOTE_PROVIDER=OFF to ignore.")
+    endif ()
+    add_library(sgx_dcap_ql SHARED IMPORTED)
+    if (WIN32)
+      set_target_properties(sgx_dcap_ql PROPERTIES
+          INTERFACE_INCLUDE_DIRECTORIES "${INCPATHS}"
+          IMPORTED_LOCATION $ENV{WINDIR}/System32
+          IMPORTED_IMPLIB ${LIBSGX_QE})
+    elseif (UNIX)
+      set_target_properties(sgx_dcap_ql PROPERTIES IMPORTED_LOCATION ${LIBSGX_QE})
+    endif ()
+    target_link_libraries(oehost PUBLIC $<BUILD_INTERFACE:sgx_dcap_ql>)
+    # turn on 'OE_LINK_SGX_DCAP_QL' for the preprocessor
+    target_compile_definitions(oehost PUBLIC OE_LINK_SGX_DCAP_QL)
+  endif ()
 endif ()
 
 # Compile definitions and options

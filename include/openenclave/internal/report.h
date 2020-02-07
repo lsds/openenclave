@@ -1,11 +1,16 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _OE_INCLUDE_REPORT_H_
 #define _OE_INCLUDE_REPORT_H_
 
+#include <openenclave/bits/defs.h>
 #include <openenclave/bits/types.h>
+#include <openenclave/internal/defs.h>
+
+#if __x86_64__ || _M_X64
 #include <openenclave/internal/sgxtypes.h>
+#endif
 
 /*
 **==============================================================================
@@ -87,6 +92,10 @@ OE_STATIC_ASSERT(
     }
 #define X509_OID_FOR_QUOTE_STRING "1.2.840.113556.10.1.1"
 
+// For old OE reports.
 #define OE_REPORT_HEADER_VERSION (1)
+
+// For attestation plugin reports.
+#define OE_ATTESTATION_HEADER_VERSION (2)
 
 #endif //_OE_INCLUDE_REPORT_H_

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #if defined(OE_BUILD_ENCLAVE)
@@ -878,7 +878,7 @@ static void _test_crl_distribution_points(void)
 {
     oe_result_t r;
     oe_cert_t cert;
-    const char** urls = NULL;
+    char** urls = NULL;
     size_t num_urls;
     size_t buffer_size = 0;
 

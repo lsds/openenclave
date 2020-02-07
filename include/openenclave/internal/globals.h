@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _OE_GLOBALS_H
@@ -31,6 +31,11 @@ extern oe_enclave_t* oe_enclave;
 uint64_t oe_get_base_heap_page(void);
 uint64_t oe_get_num_heap_pages(void);
 uint64_t oe_get_num_pages(void);
+
+/* Extended enclave initialization data */
+const void* __oe_get_eeid_base(void);
+const void* __oe_get_eeid_end(void);
+uint64_t __oe_get_eeid_size(void);
 
 OE_EXTERNC_END
 

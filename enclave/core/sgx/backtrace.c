@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <openenclave/bits/safecrt.h>
@@ -141,8 +141,11 @@ char** oe_backtrace_symbols(void* const* buffer, int size)
             goto done;
         }
 
-        if ((oe_result_t)retval != OE_OK)
+        if ((oe_result_t)retval != OE_OK ||
+            symbols_buffer_size_out != symbols_buffer_size)
+        {
             goto done;
+        }
     }
     else if ((oe_result_t)retval != OE_OK)
     {

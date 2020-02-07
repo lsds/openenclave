@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <openenclave/bits/safecrt.h>
@@ -15,6 +15,8 @@
 #include "sgx_u.h"
 #include "tee_u.h"
 
+#include "../common/sgx/verify_eeid.h"
+
 #include "sgxquoteprovider.h"
 
 OE_STATIC_ASSERT(OE_REPORT_DATA_SIZE == sizeof(sgx_report_data_t));
@@ -27,7 +29,6 @@ static oe_result_t _get_local_report(
     size_t* report_buffer_size)
 {
     oe_result_t result = OE_UNEXPECTED;
-    uint32_t retval;
 
     // opt_params, if specified, must be a sgx_target_info_t. When opt_params is
     // NULL, opt_params_size must be zero.
@@ -43,19 +44,17 @@ static oe_result_t _get_local_report(
     if (report_buffer == NULL || *report_buffer_size < sizeof(sgx_report_t))
     {
         *report_buffer_size = sizeof(sgx_report_t);
-        OE_RAISE(OE_BUFFER_TOO_SMALL);
+        OE_RAISE_NO_TRACE(OE_BUFFER_TOO_SMALL);
     }
 
     OE_CHECK(oe_get_sgx_report_ecall(
         enclave,
-        &retval,
+        &result,
         opt_params,
         opt_params_size,
         (sgx_report_t*)report_buffer));
 
     *report_buffer_size = sizeof(sgx_report_t);
-
-    result = (oe_result_t)retval;
 
 done:
 
@@ -145,10 +144,13 @@ static oe_result_t _oe_get_report_internal(
     oe_result_t result = OE_FAILURE;
     oe_report_header_t* header = (oe_report_header_t*)report_buffer;
 
-#if defined(OE_USE_LIBSGX)
+#if defined(OE_LINK_SGX_DCAP_QL)
     // The two host side attestation API's are oe_get_report and
     // oe_verify_report. Initialize the quote provider in both these APIs.
     OE_CHECK(oe_initialize_quote_provider());
+#else
+    if (flags & OE_REPORT_FLAGS_REMOTE_ATTESTATION)
+        return OE_UNSUPPORTED;
 #endif
 
     // Reserve space in the buffer for header.
@@ -272,6 +274,17 @@ oe_result_t oe_verify_report(
     size_t report_size,
     oe_report_t* parsed_report)
 {
+    return oe_verify_report_eeid(
+        enclave, report, report_size, parsed_report, NULL);
+}
+
+oe_result_t oe_verify_report_eeid(
+    oe_enclave_t* enclave,
+    const uint8_t* report,
+    size_t report_size,
+    oe_report_t* parsed_report,
+    oe_eeid_t* eeid)
+{
     oe_result_t result = OE_UNEXPECTED;
     oe_report_t oe_report = {0};
     oe_report_header_t* header = (oe_report_header_t*)report;
@@ -288,27 +301,25 @@ oe_result_t oe_verify_report(
     if (header->report_type == OE_REPORT_TYPE_SGX_REMOTE)
     {
         // Intialize the quote provider if we want to verify a remote quote.
-        // Note that we don't have the OE_USE_LIBSGX guard here since we don't
-        // need the sgx libraries to verify the quote. All we need is the quote
-        // provider.
+        // Note that we don't have the OE_LINK_SGX_DCAP_QL guard here since we
+        // don't need the sgx libraries to verify the quote. All we need is the
+        // quote provider.
         OE_CHECK(oe_initialize_quote_provider());
 
         // Quote attestation can be done entirely on the host side.
-        OE_CHECK(oe_verify_quote_internal(
-            header->report, header->report_size, NULL, 0, NULL, 0, NULL, 0));
+        OE_CHECK(oe_verify_sgx_quote(
+            header->report, header->report_size, NULL, 0, NULL));
     }
     else if (header->report_type == OE_REPORT_TYPE_SGX_LOCAL)
     {
-        uint32_t retval;
+        oe_result_t retval;
 
         if (enclave == NULL)
             OE_RAISE(OE_INVALID_PARAMETER);
 
         OE_CHECK(oe_verify_report_ecall(enclave, &retval, report, report_size));
-
         OE_CHECK(retval);
     }
-
     else
     {
         OE_RAISE(OE_INVALID_PARAMETER);
@@ -317,6 +328,18 @@ oe_result_t oe_verify_report(
     // Optionally return parsed report.
     if (parsed_report != NULL)
         OE_CHECK(oe_parse_report(report, report_size, parsed_report));
+
+    if (eeid)
+    {
+        if (!parsed_report)
+        {
+            oe_report_t treport;
+            OE_CHECK(oe_parse_report(report, report_size, &treport));
+            verify_eeid(&treport, eeid);
+        }
+        else
+            verify_eeid(parsed_report, eeid);
+    }
 
     result = OE_OK;
 done:

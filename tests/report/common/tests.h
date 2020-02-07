@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _TESTS_H_
 #define _TESTS_H_
 
+#include <openenclave/bits/eeid.h>
 #include <openenclave/internal/report.h>
 
 #ifdef OE_BUILD_ENCLAVE
@@ -23,7 +24,8 @@ extern oe_enclave_t* g_enclave;
 void test_local_report(sgx_target_info_t* target_info);
 void test_remote_report();
 void test_parse_report_negative();
-void test_local_verify_report();
-void test_remote_verify_report();
+void test_local_verify_report(oe_eeid_t* eeid);
+void test_remote_verify_report(oe_eeid_t* eeid);
+void test_verify_report_with_collaterals();
 
 #endif

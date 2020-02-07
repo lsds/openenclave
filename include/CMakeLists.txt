@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 # OE main include files, add interface library, add install steps
@@ -13,4 +13,7 @@ install(DIRECTORY openenclave/edger8r DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/op
 install(FILES openenclave/enclave.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openenclave/)
 install(FILES openenclave/host.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openenclave/)
 install(FILES openenclave/host_verify.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openenclave/ COMPONENT OEHOSTVERIFY)
+install(FILES openenclave/attestation/plugin.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openenclave/ COMPONENT OEHOSTVERIFY)
+install(FILES openenclave/attestation/sgx/attester.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openenclave/)
+install(FILES openenclave/attestation/sgx/verifier.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/openenclave/ COMPONENT OEHOSTVERIFY)
 install(TARGETS oe_includes EXPORT openenclave-targets)

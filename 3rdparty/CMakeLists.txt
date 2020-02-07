@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 # NOTE: This is set here so that both `libcxx` and `musl` can use it
@@ -79,6 +79,10 @@ if (OE_TRUSTZONE)
       BYPRODUCTS
         <BINARY_DIR>/libteec/libteec.a)
 
+    set_property(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/optee_client
+      ${CMAKE_BINARY_DIR}/libteec/libteec.a
+    )
     ExternalProject_Get_property(optee_client-wrap SOURCE_DIR)
     ExternalProject_Get_property(optee_client-wrap BINARY_DIR)
 

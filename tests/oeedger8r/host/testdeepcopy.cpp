@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include "../edltestutils.h"
@@ -166,6 +166,13 @@ void test_deepcopy_edl_ecalls(oe_enclave_t* enclave)
         CountStruct s{7, 64, nullptr};
         OE_TEST(deepcopy_null(enclave, &s) == OE_OK);
         OE_TEST(s.ptr == nullptr);
+    }
+
+    {
+        auto s = init_struct<CountStruct>();
+        OE_TEST(deepcopy_in(enclave, &s) == OE_OK);
+        // Assert the struct was not changed (as if it were "out").
+        test_struct(s, 3);
     }
 
     {

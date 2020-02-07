@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include "../edltestutils.h"
@@ -193,6 +193,15 @@ void deepcopy_super_nested(SuperNestedStruct* s, size_t n)
 void deepcopy_null(CountStruct* s)
 {
     OE_UNUSED(s);
+}
+
+void deepcopy_in(CountStruct* s)
+{
+    // Assert that it was copied in correctly.
+    deepcopy_count(s);
+    // Cause it to copy out incorrectly.
+    for (size_t i = 0; i < 3; ++i)
+        s->ptr[i] = i;
 }
 
 void deepcopy_out_count(CountStruct* s)

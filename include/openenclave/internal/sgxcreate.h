@@ -1,13 +1,16 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _OE_SGXCREATE_H
 #define _OE_SGXCREATE_H
 
+#include <openenclave/bits/eeid.h>
 #include <openenclave/bits/result.h>
+#include <openenclave/internal/types.h>
 #include "crypto/sha.h"
 #include "load.h"
 #include "sgxtypes.h"
+#include "types.h"
 
 OE_EXTERNC_BEGIN
 
@@ -75,6 +78,7 @@ oe_result_t oe_sgx_build_enclave(
     oe_sgx_load_context_t* context,
     const char* path,
     const oe_sgx_enclave_properties_t* properties,
+    oe_eeid_t* eeid,
     oe_enclave_t* enclave);
 
 /**

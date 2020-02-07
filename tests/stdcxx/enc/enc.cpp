@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <openenclave/corelibc/stdlib.h>
@@ -204,7 +204,7 @@ int enc_test(bool* caught, bool* dynamic_cast_works, size_t* n_constructions)
                 int* p = new int[64];
                 ptrs.push_back(p);
             }
-            catch (std::bad_alloc)
+            catch (std::bad_alloc&)
             {
                 bad_alloc_caught = true;
                 printf("std::bad_alloc caught\n");

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <openenclave/bits/safecrt.h>
@@ -232,7 +232,7 @@ done:
     return result;
 }
 
-void oe_cleanup_get_revocation_info_args(oe_get_revocation_info_args_t* args)
+void oe_free_get_revocation_info_args(oe_get_revocation_info_args_t* args)
 {
     if (args)
     {
@@ -329,7 +329,7 @@ done:
     return result;
 }
 
-void oe_cleanup_qe_identity_info_args(oe_get_qe_identity_info_args_t* args)
+void oe_free_qe_identity_info_args(oe_get_qe_identity_info_args_t* args)
 {
     if (args)
     {

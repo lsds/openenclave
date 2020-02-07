@@ -1,8 +1,7 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <openenclave/host.h>
-#include <openenclave/internal/aesm.h>
 #include <openenclave/internal/error.h>
 #include <openenclave/internal/hexdump.h>
 #include <openenclave/internal/tests.h>
@@ -14,6 +13,8 @@
 #include "../common/tests.h"
 #include "tests_u.h"
 
+#include "../host/signkey.h"
+
 #ifdef _WIN32
 #include <Shlobj.h>
 #include <Windows.h>
@@ -24,11 +25,19 @@
 extern void TestVerifyTCBInfo(
     oe_enclave_t* enclave,
     const char* test_file_name);
+extern void TestVerifyTCBInfoV2(
+    oe_enclave_t* enclave,
+    const char* test_filename);
+extern void TestVerifyTCBInfoV2_AdvisoryIDs(
+    oe_enclave_t* enclave,
+    const char* test_filename);
 extern int FileToBytes(const char* path, std::vector<uint8_t>* output);
+
+oe_eeid_t* eeid = NULL;
 
 void generate_and_save_report(oe_enclave_t* enclave)
 {
-#ifdef OE_USE_LIBSGX
+#ifdef OE_LINK_SGX_DCAP_QL
     static uint8_t* report;
     size_t report_size;
     OE_TEST(
@@ -69,9 +78,10 @@ int load_and_verify_report()
 
 int main(int argc, const char* argv[])
 {
-    sgx_target_info_t target_info;
     oe_result_t result;
     oe_enclave_t* enclave = NULL;
+
+    sgx_target_info_t target_info = {{0}};
 
 #ifdef _WIN32
     /* This is a workaround for running in Visual Studio 2017 Test Explorer
@@ -125,20 +135,54 @@ int main(int argc, const char* argv[])
     {
         return load_and_verify_report();
     }
+    else if (argc == 3 && strcmp(argv[2], "--eeid") == 0)
+    {
+        uint64_t sz = oe_round_up_to_page_size(sizeof(oe_eeid_t) + 512);
+        eeid = (oe_eeid_t*)calloc(1, sz);
+        eeid->size_settings.num_heap_pages = 1024;
+        eeid->size_settings.num_stack_pages = 1024;
+        eeid->size_settings.num_tcs = 2;
+        eeid->data_size = 512;
+        for (size_t i = 0; i < eeid->data_size; i++)
+            eeid->data[i] = (uint8_t)i;
+    }
 
     /* Check arguments */
-    if (argc != 2)
+    if (argc != 2 && argc != 3)
     {
         fprintf(stderr, "Usage: %s ENCLAVE\n", argv[0]);
         exit(1);
     }
 
     /* Create the enclave */
-    if ((result = oe_create_tests_enclave(
-             argv[1], OE_ENCLAVE_TYPE_SGX, flags, NULL, 0, &enclave)) != OE_OK)
+    if (eeid)
     {
-        oe_put_err("oe_create_tests_enclave(): result=%u", result);
+        if ((result = oe_create_tests_enclave_eeid(
+                 argv[1],
+                 OE_ENCLAVE_TYPE_SGX,
+                 flags,
+                 NULL,
+                 0,
+                 eeid,
+                 &enclave)) != OE_OK)
+            oe_put_err("oe_create_tests_enclave_eeid(): result=%u", result);
     }
+    else
+    {
+        if ((result = oe_create_tests_enclave(
+                 argv[1], OE_ENCLAVE_TYPE_SGX, flags, NULL, 0, &enclave)) !=
+            OE_OK)
+        {
+            oe_put_err("oe_create_tests_enclave(): result=%u", result);
+        }
+    }
+
+    /*
+     * Host API tests.
+     */
+    g_enclave = enclave;
+
+#ifdef OE_LINK_SGX_DCAP_QL
 
     /* Initialize the target info */
     {
@@ -148,18 +192,14 @@ int main(int argc, const char* argv[])
         }
     }
 
-    /*
-     * Host API tests.
-     */
-    g_enclave = enclave;
-
-#ifdef OE_USE_LIBSGX
     test_local_report(&target_info);
     test_remote_report();
     test_parse_report_negative();
-    test_local_verify_report();
+    test_local_verify_report(eeid);
 
-    test_remote_verify_report();
+    test_remote_verify_report(eeid);
+
+    test_verify_report_with_collaterals();
 
     OE_TEST(test_iso8601_time(enclave) == OE_OK);
     OE_TEST(test_iso8601_time_negative(enclave) == OE_OK);
@@ -172,12 +212,19 @@ int main(int argc, const char* argv[])
 
     OE_TEST(enclave_test_parse_report_negative(enclave) == OE_OK);
 
-    OE_TEST(enclave_test_local_verify_report(enclave) == OE_OK);
+    OE_TEST(enclave_test_local_verify_report(enclave, eeid) == OE_OK);
 
-    OE_TEST(enclave_test_remote_verify_report(enclave) == OE_OK);
+    OE_TEST(enclave_test_remote_verify_report(enclave, eeid) == OE_OK);
+
+    OE_TEST(enclave_test_verify_report_with_collaterals(enclave) == OE_OK);
 
     TestVerifyTCBInfo(enclave, "./data/tcbInfo.json");
     TestVerifyTCBInfo(enclave, "./data/tcbInfo_with_pceid.json");
+
+    TestVerifyTCBInfoV2(enclave, "./data_v2/tcbInfo.json");
+    TestVerifyTCBInfoV2(enclave, "./data_v2/tcbInfo_with_pceid.json");
+    TestVerifyTCBInfoV2_AdvisoryIDs(
+        enclave, "./data_v2/tcbInfoAdvisoryIds.json");
 
     // Get current time and pass it to enclave.
     std::time_t t = std::time(0);
@@ -194,7 +241,6 @@ int main(int argc, const char* argv[])
     test_minimum_issue_date(enclave, now);
 
     generate_and_save_report(enclave);
-
 #else
     test_local_report(&target_info);
     test_parse_report_negative();

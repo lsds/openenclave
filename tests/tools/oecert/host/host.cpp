@@ -1,15 +1,18 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <limits.h>
 #include <openenclave/host.h>
+#include <openenclave/internal/report.h>
 #include <openenclave/internal/tests.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "oecert_u.h"
 
-#ifdef OE_USE_LIBSGX
+#include "../../../../common/sgx/endorsements.h"
+
+#ifdef OE_LINK_SGX_DCAP_QL
 
 #define INPUT_PARAM_OPTION_CERT "--cert"
 #define INPUT_PARAM_OPTION_REPORT "--report"
@@ -189,6 +192,47 @@ static oe_result_t _gen_report(
                 // TODO: Dump report.
             }
         }
+
+        char collateral_filename[1024 + 1];
+
+        if (strlen(report_filename) < (1024 - 4))
+        {
+            uint8_t* collaterals = NULL;
+            size_t collaterals_size = 0;
+            oe_report_header_t* header = (oe_report_header_t*)remote_report;
+
+            sprintf(collateral_filename, "%s.col", report_filename);
+            printf("Generatting collateral file: %s\n", collateral_filename);
+
+            result = oe_get_sgx_endorsements(
+                header->report,
+                header->report_size,
+                &collaterals,
+                &collaterals_size);
+            if (result != OE_OK)
+            {
+                printf("Failed to create SGX endorsements.");
+                result = OE_FAILURE;
+                goto exit;
+            }
+
+            FILE* col_fp = fopen(collateral_filename, "wb");
+            if (!col_fp)
+            {
+                printf(
+                    "Failed to open collateral file %s\n", collateral_filename);
+                result = OE_FAILURE;
+                goto exit;
+            }
+            fwrite(collaterals, collaterals_size, 1, col_fp);
+            fclose(col_fp);
+            printf("collaterals_size = %zu\n", collaterals_size);
+        }
+        else
+        {
+            printf("ERROR: Report filename is too long.\n");
+            exit(1);
+        }
     }
     else
     {
@@ -210,7 +254,8 @@ static void _display_help(const char* cmd)
         "\t%s PRIVKEY PUBKEY: generate der remote attestation certificate.\n",
         INPUT_PARAM_OPTION_CERT);
     printf(
-        "\t%s : generate binary enclave report.\n", INPUT_PARAM_OPTION_REPORT);
+        "\t%s : generate binary enclave evidence and endorsements.\n",
+        INPUT_PARAM_OPTION_REPORT);
     printf("\t%s : output filename.\n", INPUT_PARAM_OPTION_OUT_FILE);
 
     // TODO: Add option to display certs
@@ -271,7 +316,6 @@ static int _parse_args(int argc, const char* argv[])
             if (argc >= i)
             {
                 _params.gen_report = true;
-
                 i += 1;
             }
             else
@@ -288,7 +332,6 @@ static int _parse_args(int argc, const char* argv[])
             if (argc >= i + 1)
             {
                 _params.out_filename = argv[i + 1];
-
                 i += 2;
             }
             else
@@ -402,13 +445,13 @@ static oe_result_t _process_params(oe_enclave_t* enclave)
     return result;
 }
 
-#endif // OE_USE_LIBSGX
+#endif // OE_LINK_SGX_DCAP_QL
 
 int main(int argc, const char* argv[])
 {
     int ret = 0;
 
-#ifdef OE_USE_LIBSGX
+#ifdef OE_LINK_SGX_DCAP_QL
     oe_result_t result;
     oe_enclave_t* enclave = NULL;
 
@@ -444,8 +487,8 @@ int main(int argc, const char* argv[])
     result = oe_terminate_enclave(enclave);
 exit:
 #else
-#pragma message \
-    "OE_USE_LIBSGX is not set to ON.  This tool requires SGX libraries."
+#pragma message( \
+    "OE_LINK_SGX_DCAP_QL is not set to ON.  This tool requires DCAP libraries.")
     OE_UNUSED(argc);
     OE_UNUSED(argv);
 #endif

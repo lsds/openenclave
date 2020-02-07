@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <openenclave/bits/safecrt.h>
@@ -40,7 +40,7 @@ oe_result_t oe_get_qe_identity_info(oe_get_qe_identity_info_args_t* args_out)
     args.issuer_chain_size = ISSUER_CHAIN_SIZE;
 
     /* First call (one or more buffers might be too small). */
-    if (oe_get_qe_identify_info_ocall(
+    if (oe_get_qe_identity_info_ocall(
             &retval,
             args.qe_id_info,
             args.qe_id_info_size,
@@ -76,7 +76,7 @@ oe_result_t oe_get_qe_identity_info(oe_get_qe_identity_info_args_t* args_out)
             OE_RAISE(OE_OUT_OF_MEMORY);
         }
 
-        if (oe_get_qe_identify_info_ocall(
+        if (oe_get_qe_identity_info_ocall(
                 &retval,
                 args.qe_id_info,
                 args.qe_id_info_size,
@@ -117,7 +117,7 @@ done:
 }
 
 // Cleanup the args structure.
-void oe_cleanup_qe_identity_info_args(oe_get_qe_identity_info_args_t* args)
+void oe_free_qe_identity_info_args(oe_get_qe_identity_info_args_t* args)
 {
     if (!args)
         return;

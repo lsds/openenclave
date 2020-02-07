@@ -15,6 +15,16 @@ To build from source, please follow
 [Advanced Build Info](../../docs/GettingStartedDocs/Contributors/AdvancedBuildInfo.md).
 The `oeedger8r` is built by the CMake target `oeedger8r_target`.
 
+The `oeedger8r` tool is written in OCaml, and builds using
+[esy](https://esy.sh/). This is a tool that provides OCaml package management
+and reproducible build environments. Instead of installing the native OCaml
+tools, `esy` parses the `package.json` file to download and install the exact
+OCaml dependencies (including the OCaml compilers and tools, and the `dune`
+build system). Running just the command `esy` is equivalent to `esy install &&
+esy build` which installs the packages and kicks off the `dune` build, in the
+correct environment (this is similar to tools like `pyenv`), and in a
+cross-platform manner.
+
 For more information on using writing EDL files and using this tool, please see
 [Edger8r Getting Started](../../docs/GettingStartedDocs/Edger8rGettingStarted.md).
 
@@ -52,6 +62,10 @@ else (
    defining the `enclave_content` record in `Ast.ml` and redefining it as an
    equivalent type in `CodeGen.ml`.
 
+4. Dune build for the Intel sources. This required adding the prefix `Intel.` to
+   uses of types defined in the Intel sources in both `main.ml` and
+   `Emitter.ml`.
+
 ### Edge Routine Emitter
 
 The edge routine emitter for Open Enclave is implemented in `Emitter.ml`. It
@@ -61,10 +75,17 @@ improved plugin model as it is a copy of Intel's code.
 
 ### Best Practices
 
-We use [ocamlformat](https://github.com/ocaml-ppx/ocamlformat) to format our
-code (such as `Emitter.ml`, but not Intel's code). It is the final say in
-formatting. This should be setup to run automatically in one's editor, as it has
-not yet been setup in CI.
+We use [ocamlformat v0.12](https://github.com/ocaml-ppx/ocamlformat) (bundled
+via `esy`) to format our code (such as `Emitter.ml`, but not Intel's code). It
+is the final say in formatting. The developer build (that is, just `esy build`,
+not `esy build --release`) is setup to automatically run `ocamlformat` before
+compiling, and if any changes are necessary it will update the files and then
+exit with an error. Run the build a second time to complete the build with the
+fixed files (and don't forget to commit them).
+
+> Note that because we copy the sources to the build directory for CMake, the
+> CMake build uses `esy build --release` which does not run the formatter, as it
+> would not make sense to do on copied files.
 
 We follow [OCamlverse Best Practices](https://ocamlverse.github.io/content/best_practices.html)
 (which includes using `ocamlformat`).

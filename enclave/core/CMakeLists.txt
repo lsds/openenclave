@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 ##==============================================================================
@@ -50,6 +50,8 @@ set(MUSL_SRC_DIR ${PROJECT_SOURCE_DIR}/3rdparty/musl/musl/src)
 
 if (OE_SGX)
     list(APPEND PLATFORM_SRC
+        ../../common/sgx/endorsements.c
+        ../../host/sgx/sgxmeasure.c
         sgx/backtrace.c
         sgx/calls.c
         sgx/cpuid.c
@@ -59,7 +61,6 @@ if (OE_SGX)
         sgx/hostcalls.c
         sgx/init.c
         sgx/sgx_t_wrapper.c
-        sgx/jump.c
         sgx/keys.c
         sgx/memory.c
         sgx/properties.c
@@ -67,6 +68,7 @@ if (OE_SGX)
         sgx/sched_yield.c
         sgx/spinlock.c
         sgx/td.c
+        sgx/td_basic.c
         sgx/thread.c
         sgx/tracee.c
         sgx/enter.S
@@ -74,6 +76,11 @@ if (OE_SGX)
         sgx/getkey.S
         sgx/longjmp.S
         sgx/setjmp.S)
+
+    # Functions in td_basic.c will change the status of td and may trigger
+    # stack check fail, thus it is necessary to turn off stack check.
+    set_source_files_properties(sgx/td_basic.c PROPERTIES
+        COMPILE_FLAGS -fno-stack-protector)
 
     # OS specific sources for SGX.
     if (UNIX OR USE_CLANGW)
@@ -136,12 +143,13 @@ add_library(oecore STATIC
     pthread.c
     result.c
     sbrk.c
-    shm.c
+    arena.c
     stdio.c
     strerror.c
     string.c
     strtok_r.c
     strtoul.c
+    switchlesscalls.c
     tee_t_wrapper.c
     time.c
     tracee.c
@@ -184,9 +192,6 @@ set_source_files_properties(malloc.c
     PROPERTIES COMPILE_FLAGS "-Wno-conversion -Wno-null-pointer-arithmetic")
 
 if (OE_SGX)
-    # jump.s must be optimized for the correct call-frame.
-    set_source_files_properties(sgx/jump.c PROPERTIES COMPILE_FLAGS -O2)
-
     set_source_files_properties(sgx/keys.c PROPERTIES COMPILE_FLAGS -Wno-type-limits)
 
     # -m64 is an x86_64 specific flag
@@ -206,8 +211,11 @@ if (OE_SGX)
     target_compile_options(oecore PUBLIC
         -fPIE
         -nostdinc
-        -fno-stack-protector
+        -fstack-protector-strong
         -fvisibility=hidden
+        # Put each function or data in its own section.
+        # This allows aggressively eliminating unused code.
+        -ffunction-sections -fdata-sections
         # "The default without -fpic is 'initial-exec'; with -fpic the
         # default is 'global-dynamic'."
         # https://gcc.gnu.org/onlinedocs/gcc/Code-Gen-Options.html#Code-Gen-Options
@@ -241,8 +249,8 @@ target_compile_definitions(oecore
     # package.
     $<BUILD_INTERFACE:OE_API_VERSION=2>)
 
-if(USE_LIBSGX)
-    target_compile_definitions(oecore PUBLIC OE_USE_LIBSGX)
+if(HAS_QUOTE_PROVIDER)
+    target_compile_definitions(oecore PUBLIC OE_LINK_SGX_DCAP_QL)
 endif()
 
 if(USE_DEBUG_MALLOC)
@@ -256,7 +264,8 @@ if(OE_SGX)
         -nostdlib -nodefaultlibs -nostartfiles
         -Wl,--no-undefined,-Bstatic,-Bsymbolic,--export-dynamic,-pie,--build-id
         -Wl,-z,noexecstack
-        -Wl,-z,now)
+        -Wl,-z,now
+        -Wl,-gc-sections)
 elseif(OE_TRUSTZONE)
     target_link_libraries(oecore INTERFACE
         -nostdlib -nodefaultlibs -nostartfiles

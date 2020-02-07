@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _TD_H
@@ -54,26 +54,40 @@ struct _callsite
     Callsite* next;
 };
 
+/* Some basic td function do not have the opportunity to keep consistency of
+   td then may trigger stack check fail. Such functions are moved to a separate
+   source file td_basic.c and the stack guard protector is disabled by force
+   through fno-stack-protector option.
+*/
+
 /*
 **==============================================================================
 **
-** td_t methods:
+** td_t methods defined in td.c
 **
 **==============================================================================
 */
 
 void td_push_callsite(td_t* td, Callsite* ec);
 
-void td_pop_callsite(td_t* td);
-
 td_t* td_from_tcs(void* tcs);
 
 void* td_to_tcs(const td_t* td);
 
+bool td_initialized(td_t* td);
+
+/*
+**==============================================================================
+**
+** td_t methods defined in td_basic.c
+**
+**==============================================================================
+*/
+
+void td_pop_callsite(td_t* td);
+
 void td_init(td_t* td);
 
 void td_clear(td_t* td);
-
-bool td_initialized(td_t* td);
 
 #endif /* _TD_H */

@@ -12,9 +12,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Transferred repository from [microsoft/openenclave](https://github.com/microsoft/openenclave) to [openenclave/openenclave](https://github.com/openenclave/openenclave).
-- Change debugging contract for oegdb. Enclaves and hosts built prior to this release cannot be debugged with this version of oegdb and vice versa.
+- Open Enclave SDK is now officially an incubation project as part of the Linux
+  Foundation's Confidential Computing Consortium (CCC).
+    - All contributions are now accepted under the terms of the [Developer Certificate
+      of Origin](https://developercertificate.org). For details, see
+      [Contributing to Open Enclave](docs/Contributing.md).
+    - The copyright for all sources is now attributed to Open Enclave SDK contributors.
+- Update Intel DCAP library dependencies to 1.3.1.
+- Update Intel PSW dependencies to 2.5.101.3 on Windows.
+- The stack guard for OE SDK on SGX is turned on. It is also turned on for enclaves.
+
+[v0.7.0] - 2019-10-26
+---------------------
+
+### Added
+
+- Support Intel DCAP attestation on Windows.
+- Support `transition_using_threads` EDL attribute in oeedger8r.
+    - This only applies to untrusted functions (ocalls) in this release.
+    - Using this attribute allows the ocall to be invoked without incurring the
+      performance cost of an enclave context switch.
+- Ability to debug ELF enclaves on Windows using Windbg/CDB
+    - [Visual Studio Code CDB Extension](https://aka.ms/CDBVSCode)
+    - [WinDbg Preview](https://aka.ms/WinDbgPreview)
+    - The new oedebugrt.dll binary needs to be copied to the app folder to enable this.
+- Preview support for 64-bit ARM TrustZone-capable boards with OP-TEE OS
+  - See the [documentation](docs/GettingStartedDocs/OP-TEE/Introduction.md)
+    for the list of supported platforms, features, and known issues.
+
+### Changed
+
+- Transferred repository from [microsoft/openenclave](https://github.com/microsoft/openenclave)
+  to [openenclave/openenclave](https://github.com/openenclave/openenclave).
+- Change debugging contract for oegdb. Enclaves and hosts built prior to this
+  release cannot be debugged with this version of oegdb and vice versa.
+- Update Intel DCAP library dependencies to 1.3.
+- Update Intel PSW dependencies to 2.7 on Linux and 2.5 on Windows.
+- SGX1 configurations always take build dependency on Intel SGX enclave common library.
 - Update LLVM libcxx to version 8.0.0.
+- Update mbedTLS to version 2.16.2.
+
+### Deprecated
+
+- The mbedTLS libraries used in Open Enclave will no longer be compiled with the
+  following config.h options in the next (v0.8) release:
+    - `MBEDTLS_TLS_DEFAULT_ALLOW_SHA1_IN_KEY_EXCHANGE`: Considerable advances
+      have been made in breaking SHA1 since our original review and we would
+      like to be more prescriptive in recommending the use of SHA256.
+    - `MBEDTLS_KEY_EXCHANGE_RSA_ENABLED`: This option provides no perfect
+      forward secrecy and is generally becoming less popular as this is
+      recognized. The ECDHE variants are also more performant.
+
+### Security
+
+- Fix enclave heap memory disclosure (CVE-2019-1369).
 
 [v0.6.0] - 2019-06-29
 ---------------------
@@ -35,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
          should enable it themselves after assessing its startup impact.
 - Removed support for the previously deprecated `OE_API_VERSION=1` APIs.
 - Update MUSL libc to version 1.1.21.
+- Update mbedTLS to version 2.7.11.
 
 [v0.5.0] - 2019-04-09
 ---------------------
@@ -107,6 +159,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Check support for AVX in platform/OS before setting SECS.ATTRIBUTES.XFRM in enclave.
+
+### Security
+
 - Fix CVE-2019-0876
    - `_handle_sgx_get_report` will now write to the supplied argument if it lies in host memory.
    - Added check for missing null terminator in oeedger8r generated code.
@@ -193,8 +248,10 @@ as listed below.
 
 Initial private preview release, no longer supported.
 
-[Unreleased]: https://github.com/openenclave/openenclave/compare/v0.5.0...HEAD
-[v0.5.0]: https://github.com/openenclave/openenclave/compare/v0.4.1...v0.5.0
-[v0.4.1]: https://github.com/openenclave/openenclave/compare/v0.4.0...v0.4.1
-[v0.4.0]: https://github.com/openenclave/openenclave/compare/v0.1.0...v0.4.0
-[v0.1.0]: https://github.com/openenclave/openenclave/compare/beb546f...v0.1.0
+[Unreleased](https://github.com/openenclave/openenclave/compare/v0.7.0...HEAD)
+[v0.7.0](https://github.com/openenclave/openenclave/compare/v0.6.0...v0.7.0)
+[v0.6.0](https://github.com/openenclave/openenclave/compare/v0.5.0...v0.6.0)
+[v0.5.0](https://github.com/openenclave/openenclave/compare/v0.4.1...v0.5.0)
+[v0.4.1](https://github.com/openenclave/openenclave/compare/v0.4.0...v0.4.1)
+[v0.4.0](https://github.com/openenclave/openenclave/compare/v0.1.0...v0.4.0)
+[v0.1.0](https://github.com/openenclave/openenclave/compare/beb546f...v0.1.0)

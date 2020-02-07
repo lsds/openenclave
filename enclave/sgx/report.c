@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include "report.h"
@@ -14,6 +14,7 @@
 #include <openenclave/internal/utils.h>
 #include <stdlib.h>
 #include "../common/sgx/quote.h"
+#include "../common/sgx/verify_eeid.h"
 #include "sgx_t.h"
 
 OE_STATIC_ASSERT(OE_REPORT_DATA_SIZE == sizeof(sgx_report_data_t));
@@ -50,6 +51,15 @@ oe_result_t oe_verify_report(
     size_t report_size,
     oe_report_t* parsed_report)
 {
+    return oe_verify_report_eeid(report, report_size, parsed_report, NULL);
+}
+
+oe_result_t oe_verify_report_eeid(
+    const uint8_t* report,
+    size_t report_size,
+    oe_report_t* parsed_report,
+    oe_eeid_t* eeid)
+{
     oe_result_t result = OE_UNEXPECTED;
     oe_report_t oe_report = {0};
     sgx_key_t sgx_key = {{0}};
@@ -66,8 +76,8 @@ oe_result_t oe_verify_report(
 
     if (header->report_type == OE_REPORT_TYPE_SGX_REMOTE)
     {
-        OE_CHECK(oe_verify_quote_internal(
-            header->report, header->report_size, NULL, 0, NULL, 0, NULL, 0));
+        OE_CHECK(oe_verify_sgx_quote(
+            header->report, header->report_size, NULL, 0, NULL));
     }
     else if (header->report_type == OE_REPORT_TYPE_SGX_LOCAL)
     {
@@ -97,6 +107,9 @@ oe_result_t oe_verify_report(
     // Optionally return parsed report.
     if (parsed_report != NULL)
         *parsed_report = oe_report;
+
+    if (eeid)
+        verify_eeid(&oe_report, eeid);
 
     result = OE_OK;
 

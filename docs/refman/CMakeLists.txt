@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 option(ENABLE_REFMAN "Enable Doxygen reference manual generation" ON)
 
@@ -16,6 +16,12 @@ if (ENABLE_REFMAN)
   # While Doxygen would automatically strip the working directory, we
   # have to specify it because we have another directory to strip.
   set(DOXYGEN_STRIP_FROM_PATH "${PROJECT_SOURCE_DIR}/include/openenclave/;${PROJECT_SOURCE_DIR}/docs/refman")
+
+  # Allow @experimental to be used in headers to mark an API as experimental and add it to a list of
+  # experimental APIs.
+  set(DOXYGEN_ALIASES
+    "experimental = \\xrefitem experimental \\\"This feature is marked as experimental\\\" \\\"Experimental List\\\""
+    "experimental{1} = \\xrefitem experimental \\\"Experimental\\\" \\\"Experimental List\\\" \\1")
 
   # NOTE: These were set to their non-default values in the existing
   # configuration file, so that configuration has been copied here.

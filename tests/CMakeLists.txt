@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 include(oeedl_file)
@@ -16,17 +16,18 @@ if (WIN32_SIMULATION)
     message("WIN32_SIMULATION set, failing tests are skipped")
 endif ()
 
-add_subdirectory(lockless_queue)
 add_subdirectory(mem)
 add_subdirectory(safecrt)
 add_subdirectory(safemath)
 add_subdirectory(str)
+add_subdirectory(logging)
 add_subdirectory(tools)
 
 if (OE_SGX)
-    add_subdirectory(aesm)
     add_subdirectory(debugger)
     add_subdirectory(host_verify)
+    add_subdirectory(switchless)
+    add_subdirectory(switchless_threads)
 endif()
 
 if (UNIX OR ADD_WINDOWS_ENCLAVE_TESTS OR USE_CLANGW)
@@ -34,8 +35,10 @@ if (UNIX OR ADD_WINDOWS_ENCLAVE_TESTS OR USE_CLANGW)
         # The following tests currently fail in Windows simulation mode
         if (NOT WIN32_SIMULATION)
             add_subdirectory(abortStatus)
+            add_subdirectory(attestation_plugin)
             add_subdirectory(cppException)
             add_subdirectory(ecall)
+            add_subdirectory(ecall_ocall)
             add_subdirectory(file)
             add_subdirectory(mbed)
             add_subdirectory(ocall-create)
@@ -45,6 +48,9 @@ if (UNIX OR ADD_WINDOWS_ENCLAVE_TESTS OR USE_CLANGW)
             add_subdirectory(threadcxx)
             add_subdirectory(thread_local)
             add_subdirectory(thread_local_no_tdata)
+        endif()
+        if (BUILD_ENCLAVES)
+            add_subdirectory(tls_e2e)
         endif()
         add_subdirectory(argv)
         add_subdirectory(attestation_cert_apis)
@@ -66,6 +72,7 @@ if (UNIX OR ADD_WINDOWS_ENCLAVE_TESTS OR USE_CLANGW)
         add_subdirectory(stdc)
         add_subdirectory(syscall)
         add_subdirectory(VectorException)
+        add_subdirectory(stack_smashing_protector)
     endif()
 
 add_subdirectory(create-errors)
@@ -81,6 +88,7 @@ endif()
 # Windows test Broken Post #632 issue
 if ( UNIX )
     if (OE_SGX)
+        add_subdirectory(cmake_name_conflict)
         add_subdirectory(libcxx)
         add_subdirectory(libcxxrt)
         add_subdirectory(memory)
@@ -90,11 +98,5 @@ add_subdirectory(libc)
 endif()
 
 if (OE_SGX AND UNIX)
-   # ecall_ocall enclave size cannot be handled by Windows ninja CI
-   add_subdirectory(ecall_ocall)
    add_subdirectory(libunwind)
-
-   # Attestation supported only on Linux
-   add_subdirectory(tls_e2e)
-   add_subdirectory(switchless)
 endif()

@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 add_subdirectory(core)
@@ -6,6 +6,8 @@ add_subdirectory(crypto)
 
 if (OE_SGX)
     set(PLATFORM_SRC
+        ../common/sgx/eeid.c
+        ../common/sgx/endorsements.c
         ../common/sgx/qeidentity.c
         ../common/sgx/quote.c
         ../common/sgx/report.c
@@ -13,6 +15,9 @@ if (OE_SGX)
         ../common/sgx/sgxcertextensions.c
         ../common/sgx/tcbinfo.c
         ../common/sgx/tlsverifier.c
+        ../common/sgx/verifier.c
+        ../common/sgx/verify_eeid.c
+        sgx/attester.c
         sgx/qeidinfo.c
         sgx/report.c
         sgx/revocationinfo.c
@@ -25,8 +30,8 @@ elseif(OE_TRUSTZONE)
 endif()
 
 add_library(oeenclave STATIC
+    ../common/attest_plugin.c
     ../common/datetime.c
-    ../common/lockless_queue.c
     asym_keys.c
     link.c
     random.c

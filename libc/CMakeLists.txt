@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 # Build the C library, using local sources and sources from musl.
@@ -76,7 +76,6 @@ add_library(oelibc STATIC
     strerror.c
     syscalls.c
     sysconf.c
-    time.c
     regcomp.c
     regexec.c
     tre-mem.c
@@ -747,6 +746,7 @@ add_library(oelibc STATIC
     ${MUSLSRC}/time/mktime.c
     ${MUSLSRC}/time/nanosleep.c
     ${MUSLSRC}/time/__secs_to_tm.c
+    ${MUSLSRC}/time/strftime.c
     ${MUSLSRC}/time/__tz.c
     ${MUSLSRC}/time/time.c
     ${MUSLSRC}/time/__tm_to_secs.c

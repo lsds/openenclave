@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _OE_STDLIB_H
@@ -36,6 +36,8 @@ void oe_memalign_free(void* ptr);
 void* oe_memalign(size_t alignment, size_t size);
 
 int oe_posix_memalign(void** memptr, size_t alignment, size_t size);
+
+size_t oe_malloc_usable_size(void* ptr);
 
 unsigned long int oe_strtoul(const char* nptr, char** endptr, int base);
 

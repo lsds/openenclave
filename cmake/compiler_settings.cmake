@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 # Check Clang version.
@@ -15,6 +15,8 @@ if (NOT CMAKE_C_COMPILER_ID STREQUAL CMAKE_CXX_COMPILER_ID)
   message(FATAL_ERROR "Your C and C++ compilers have different vendors: "
     "${CMAKE_C_COMPILER_ID} != ${CMAKE_CXX_COMPILER_ID}")
 endif ()
+
+set(CMAKE_C_STANDARD 11)
 
 # Set the default standard to C++14 for all targets.
 set(CMAKE_CXX_STANDARD 14)
@@ -72,8 +74,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
   # and that are easy to avoid. Treat at warnings-as-errors, which forces developers
   # to fix warnings as they arise, so they don't accumulate "to be fixed later".
   add_compile_options(-Wall -Werror -Wpointer-arith -Wconversion -Wextra -Wno-missing-field-initializers)
-
   add_compile_options(-fno-strict-aliasing)
+
+  # Allow checks which always evaluate to true or false due to type limits.
+  # This is required as some macros operate on types of varying sizes.
+  add_compile_options(-Wno-type-limits)
 
   # Enables XSAVE intrinsics
   if (OE_SGX)
@@ -84,11 +89,40 @@ elseif (MSVC)
   if (MSVC_VERSION VERSION_LESS 1910)
     message(FATAL_ERROR "Only Visual Studio 2017 and above supported!")
   endif ()
+
+  # Explicitly set C/CXX flags rather than using the defaults. This uses the defaults
+  # but removes /W3 from CMAKE_C(XX)_FLAGS. Using W3 and W1 together adds many warnings
+  # that W3 is being overwritten by W1. W3 as a default flag is removed in cmake 3.15,
+  # so this behavior can be removed if/when cmake_minimum_required is raised to 3.15.
+  # ======= Default compiler flags for cmake version 3.12 can be found here: =======
+  # https://github.com/Kitware/CMake/blob/v3.12.0/Modules/Platform/Windows-MSVC.cmake
+  set (CMAKE_C_FLAGS "/DWIN32 /D_WINDOWS")
+  set (CMAKE_C_FLAGS_DEBUG "/MDd /Zi /Ob0 /Od /RTC1")
+  set (CMAKE_C_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG")
+
+  set (CMAKE_CXX_FLAGS "/DWIN32 /D_WINDOWS /GR /EHsc")
+  set (CMAKE_CXX_FLAGS_DEBUG "/DWIN32 /D_WINDOWS /MDd /Zi /Ob0 /Od /RTC1")
+  set (CMAKE_CXX_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG")
+
+  # Can't use add_compile_options because it adds for all file types and ml64
+  # doesn't recognize /wd flags
+  # Turns off warnings for:
+  # * Unicode character cannot be represented by current code page
+  # * Flexible array members. These are standard in C99 so we will allow them.
+  set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4566 /wd4200")
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4566 /wd4200")
+
+  # Add Flags we want to use for both C and CXX
+  add_compile_options(/WX)
+  add_compile_options(/W2)
+
+  # Ignore compiler warnings:
+  # * unicode character not supported
+
   if (CMAKE_MSVC_PARALLEL_ENABLE)
     add_compile_options(/MP)
     message(STATUS "Using parallel compiling (/MP)")
   endif()
-
 endif ()
 
 # Use ML64 as assembler on Windows

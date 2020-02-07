@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -33,6 +33,9 @@ int enc_add(int a, int b)
     return c;
 }
 
+// The following function is intended to be called by the debugger.
+// It must be retained via OE_EXPORT.
+OE_EXPORT
 int square(int x)
 {
     printf("square called with %d\n", x);

@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 ##==============================================================================
@@ -27,7 +27,9 @@ set(ENCLAVE_CFLAGS_LIST
   -fPIE
   -ftls-model=local-exec
   -fvisibility=hidden
-  -fno-stack-protector)
+  -fno-stack-protector
+  -ffunction-sections
+  -fdata-sections)
 
 set(ENCLAVE_CFLAGS_CLANG_LIST ${ENCLAVE_CFLAGS_LIST} ${SPECTRE_MITIGATION_FLAGS})
 list(JOIN ENCLAVE_CFLAGS_CLANG_LIST " " ENCLAVE_CFLAGS_CLANG)
@@ -52,6 +54,7 @@ set(ENCLAVE_CLIBS_1
   -Wl,--build-id
   -Wl,-z,noexecstack
   -Wl,-z,now
+  -Wl,-gc-sections
   -L\${libdir}/openenclave/enclave
   -loeenclave
   -loecryptombed
@@ -90,10 +93,10 @@ set(HOST_CXXFLAGS_GCC ${HOST_CFLAGS_GCC})
 ##
 ##==============================================================================
 
-if(USE_LIBSGX)
+if(HAS_QUOTE_PROVIDER)
     set(SGX_LIBS "-lsgx_enclave_common -lsgx_dcap_ql -lsgx_urts")
 else()
-    set(SGX_LIBS "")
+    set(SGX_LIBS "-lsgx_enclave_common -lsgx_urts")
 endif()
 
 set(HOSTVERIFY_CLIBS "-rdynamic -Wl,-z,noexecstack -L\${libdir}/openenclave/host -loehostverify -ldl -lpthread")

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <assert.h>
@@ -119,7 +119,7 @@ oe_result_t oe_get_quote_ocall(
     return result;
 }
 
-#if defined(OE_USE_LIBSGX)
+#if defined(OE_LINK_SGX_DCAP_QL)
 
 /* Copy the source array to an output buffer. */
 static oe_result_t _copy_output_buffer(
@@ -260,7 +260,7 @@ oe_result_t oe_get_revocation_info_ocall(
         &buffer_too_small));
 
     if (buffer_too_small)
-        OE_RAISE(OE_BUFFER_TOO_SMALL);
+        OE_RAISE_NO_TRACE(OE_BUFFER_TOO_SMALL);
 
     result = OE_OK;
 
@@ -271,7 +271,7 @@ done:
     return result;
 }
 
-oe_result_t oe_get_qe_identify_info_ocall(
+oe_result_t oe_get_qe_identity_info_ocall(
     void* qe_id_info,
     size_t qe_id_info_size,
     size_t* qe_id_info_size_out,
@@ -308,6 +308,7 @@ oe_result_t oe_get_qe_identify_info_ocall(
         memcpy(issuer_chain, args.issuer_chain, args.issuer_chain_size);
 
     *issuer_chain_size_out = args.issuer_chain_size;
+    result = OE_OK;
 
 done:
 
@@ -317,7 +318,7 @@ done:
     return result;
 }
 
-#else /* !defined(OE_USE_LIBSGX) */
+#else /* !defined(OE_LINK_SGX_DCAP_QL) */
 
 oe_result_t oe_get_revocation_info_ocall(
     uint8_t fmspc[6],
@@ -383,7 +384,7 @@ oe_result_t oe_get_revocation_info_ocall(
     return OE_UNSUPPORTED;
 }
 
-oe_result_t oe_get_qe_identify_info_ocall(
+oe_result_t oe_get_qe_identity_info_ocall(
     void* qe_id_info,
     size_t qe_id_info_size,
     size_t* qe_id_info_size_out,
@@ -401,7 +402,7 @@ oe_result_t oe_get_qe_identify_info_ocall(
     return OE_UNSUPPORTED;
 }
 
-#endif /* !defined(OE_USE_LIBSGX) */
+#endif /* !defined(OE_LINK_SGX_DCAP_QL) */
 
 oe_result_t oe_get_qetarget_info_ocall(sgx_target_info_t* target_info)
 {

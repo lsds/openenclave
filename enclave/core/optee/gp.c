@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #define OE_NEED_STDC_NAMES
@@ -467,6 +467,12 @@ TEE_Result TA_InvokeCommandEntryPoint(
         {
             /* Initialization performed by TA_CreateEntryPoint */
             result = TEE_ERROR_BAD_STATE;
+            break;
+        }
+        case OE_ECALL_INIT_CONTEXT_SWITCHLESS:
+        {
+            /* TODO: initialize switchless calls */
+            result = TEE_ERROR_NOT_IMPLEMENTED;
             break;
         }
         default:

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #include <assert.h>
@@ -26,6 +26,7 @@
 #include <openenclave/internal/raise.h>
 #include <openenclave/internal/registers.h>
 #include <openenclave/internal/sgxtypes.h>
+#include <openenclave/internal/switchless.h>
 #include <openenclave/internal/utils.h>
 #include "../calls.h"
 #include "../hostthread.h"
@@ -114,7 +115,6 @@ static oe_result_t _enter_sim(
 {
     oe_result_t result = OE_UNEXPECTED;
     sgx_tcs_t* tcs = (sgx_tcs_t*)tcs_;
-    ThreadBinding* binding = GetThreadBinding();
     td_t* td = NULL;
 
     /* Reject null parameters */
@@ -126,22 +126,8 @@ static oe_result_t _enter_sim(
     if (!tcs->u.entry)
         OE_RAISE(OE_NOT_FOUND);
 
-    /* Save old GS and FS register bases */
-    binding->host_gs = oe_get_gs_register_base();
-    binding->host_fs = oe_get_fs_register_base();
-
-    /* Change GS and FS registers to the values for the enclave thread. At this
-     * point thread-locals, pthread, libc etc won't work within the host thread
-     * since they depend on FS register.
-     * This means that when the enclave makes an ocall, the GS and FS registers
-     * must be immediately restored upon entry to host.
-     * See __oe_dispatch_ocall.
-     */
-    td = (td_t*)(enclave->addr + tcs->gsbase);
-    oe_set_gs_register_base(td);
-    oe_set_fs_register_base((void*)(enclave->addr + tcs->fsbase));
-
     /* Set td_t.simulate flag */
+    td = (td_t*)(enclave->addr + tcs->gsbase);
     td->simulate = true;
 
     /* Call into enclave */
@@ -152,13 +138,6 @@ static oe_result_t _enter_sim(
         *arg4 = 0;
 
     oe_enter_sim(tcs, aep, arg1, arg2, arg3, arg4, enclave);
-
-    /* Restore GS and GS registers. After this, host side library calls can be
-     * safely called.
-     */
-    oe_set_fs_register_base(binding->host_fs);
-    oe_set_gs_register_base(binding->host_gs);
-
     result = OE_OK;
 
 done:
@@ -245,16 +224,14 @@ done:
 /*
 **==============================================================================
 **
-** _handle_call_host_function()
+** oe_handle_call_host_function()
 **
 ** Handle calls from the enclave.
 **
 **==============================================================================
 */
 
-static oe_result_t _handle_call_host_function(
-    uint64_t arg,
-    oe_enclave_t* enclave)
+oe_result_t oe_handle_call_host_function(uint64_t arg, oe_enclave_t* enclave)
 {
     oe_call_host_function_args_t* args_ptr = NULL;
     oe_result_t result = OE_OK;
@@ -320,6 +297,7 @@ static oe_result_t _handle_call_host_function(
         &args_ptr->output_bytes_written);
 
     // The ocall succeeded.
+    OE_ATOMIC_MEMORY_BARRIER_RELEASE();
     args_ptr->result = OE_OK;
     result = OE_OK;
 done:
@@ -339,13 +317,13 @@ static const char* oe_ocall_str(oe_func_t ocall)
         "FREE",
         "SLEEP",
         "GET_TIME",
+        "WAKE_HOST_WORKER",
     };
     // clang-format on
 
     OE_STATIC_ASSERT(OE_OCALL_BASE + OE_COUNTOF(func_names) == OE_OCALL_MAX);
 
-    if (ocall >= OE_OCALL_BASE &&
-        ocall < (OE_OCALL_BASE + OE_COUNTOF(func_names)))
+    if (ocall >= OE_OCALL_BASE && ocall < OE_OCALL_MAX)
         return func_names[ocall - OE_OCALL_BASE];
     else
         return "UNKNOWN";
@@ -359,14 +337,14 @@ static const char* oe_ecall_str(oe_func_t ecall)
         "DESTRUCTOR",
         "INIT_ENCLAVE",
         "CALL_ENCLAVE_FUNCTION",
-        "VIRTUAL_EXCEPTION_HANDLER"
+        "VIRTUAL_EXCEPTION_HANDLER",
+        "INIT_CONTEXT_SWITCHLESS",
     };
     // clang-format on
 
     OE_STATIC_ASSERT(OE_ECALL_BASE + OE_COUNTOF(func_names) == OE_ECALL_MAX);
 
-    if (ecall >= OE_ECALL_BASE &&
-        ecall < (OE_ECALL_BASE + OE_COUNTOF(func_names)))
+    if (ecall >= OE_ECALL_BASE && ecall < OE_ECALL_MAX)
         return func_names[ecall - OE_ECALL_BASE];
     else
         return "UNKNOWN";
@@ -408,7 +386,7 @@ static oe_result_t _handle_ocall(
     switch ((oe_func_t)func)
     {
         case OE_OCALL_CALL_HOST_FUNCTION:
-            _handle_call_host_function(arg_in, enclave);
+            OE_CHECK(oe_handle_call_host_function(arg_in, enclave));
             break;
 
         case OE_OCALL_MALLOC:
@@ -433,6 +411,10 @@ static oe_result_t _handle_ocall(
 
         case OE_OCALL_GET_TIME:
             oe_handle_get_time(arg_in, arg_out);
+            break;
+
+        case OE_OCALL_WAKE_HOST_WORKER:
+            oe_handle_wake_host_worker(arg_in);
             break;
 
         default:
@@ -509,13 +491,6 @@ int __oe_dispatch_ocall(
                     break;
                 }
             }
-
-            /**
-             * Restore FS and GS registers when making an OCALL.
-             * This makes sure that thread-locals, libc on host work.
-             */
-            oe_set_fs_register_base(binding->host_fs);
-            oe_set_gs_register_base(binding->host_gs);
         }
         else
         {
@@ -529,14 +504,6 @@ int __oe_dispatch_ocall(
 
         // Restore the binding.
         _set_thread_binding(binding);
-
-        if (enclave->simulate)
-        {
-            // Prior to returning back to the enclave, set the GS and FS
-            // registers to their values for the enclave thread.
-            oe_set_fs_register_base((void*)(enclave->addr + tcs->fsbase));
-            oe_set_gs_register_base((void*)(enclave->addr + tcs->gsbase));
-        }
         return 0;
     }
 
@@ -567,7 +534,7 @@ static void* _assign_tcs(oe_enclave_t* enclave)
 {
     void* tcs = NULL;
     size_t i;
-    oe_thread thread = oe_thread_self();
+    oe_thread_t thread = oe_thread_self();
 
     oe_mutex_lock(&enclave->lock);
     {
@@ -828,10 +795,13 @@ oe_result_t oe_switchless_call_enclave_function(
 /*
 ** These two functions are needed to notify the debugger. They should not be
 ** optimized out even though they don't do anything in here.
+** OE_EXPORT is used to retain these function irrespective of linker
+** optimizations.
 */
 
 OE_NO_OPTIMIZE_BEGIN
 
+OE_EXPORT
 OE_NEVER_INLINE void oe_notify_ocall_start(
     oe_host_ocall_frame_t* frame_pointer,
     void* tcs)
@@ -842,6 +812,7 @@ OE_NEVER_INLINE void oe_notify_ocall_start(
     return;
 }
 
+OE_EXPORT
 OE_NEVER_INLINE void oe_notify_ocall_end(
     oe_host_ocall_frame_t* frame_pointer,
     void* tcs)

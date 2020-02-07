@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 /*
@@ -221,6 +221,15 @@ static int _hostfs_mount(
     if ((flags & OE_MS_RDONLY))
         fs->mount.flags = flags;
 
+    /* ---------------------------------------------------------------------
+     * Only support absolute paths. Hostfs is treated as an external
+     * filesystem. As such, it does not make sense to resolve relative paths
+     * using the enclave's current working directory.
+     * ---------------------------------------------------------------------
+     */
+    if (source && source[0] != '/')
+        OE_RAISE_ERRNO(OE_EINVAL);
+
     /* Save the source parameter (will be needed to form host paths). */
     oe_strlcpy(fs->mount.source, source, sizeof(fs->mount.source));
 
@@ -433,8 +442,10 @@ static int _hostfs_dup(oe_fd_t* desc, oe_fd_t** new_file_out)
     file_t* file = _cast_file(desc);
     file_t* new_file = NULL;
 
-    if (new_file_out)
-        *new_file_out = NULL;
+    if (!new_file_out)
+        OE_RAISE_ERRNO(OE_EINVAL);
+
+    *new_file_out = NULL;
 
     /* Check parameters. */
     if (!file)
@@ -871,13 +882,13 @@ static oe_fd_t* _hostfs_opendir(oe_device_t* device, const char* name)
     if (oe_syscall_opendir_ocall(&retval, host_name) != OE_OK)
         OE_RAISE_ERRNO(OE_EINVAL);
 
-    if (retval != 0)
-    {
-        dir->base.type = OE_FD_TYPE_FILE;
-        dir->magic = DIR_MAGIC;
-        dir->base.ops.file = _get_file_ops();
-        dir->host_dir = retval;
-    }
+    if (!retval)
+        OE_RAISE_ERRNO(oe_errno);
+
+    dir->base.type = OE_FD_TYPE_FILE;
+    dir->magic = DIR_MAGIC;
+    dir->base.ops.file = _get_file_ops();
+    dir->host_dir = retval;
 
     ret = &dir->base;
     dir = NULL;

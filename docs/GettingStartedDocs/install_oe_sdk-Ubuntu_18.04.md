@@ -26,7 +26,7 @@ wget -qO - https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add 
 ```bash
 sudo apt update
 sudo apt -y install dkms
-wget https://download.01.org/intel-sgx/dcap-1.2/linux/dcap_installers/ubuntuServer18.04/sgx_linux_x64_driver_1.12_c110012.bin -O sgx_linux_x64_driver.bin
+wget https://download.01.org/intel-sgx/sgx-dcap/1.3.1/linux/distro/ubuntuServer18.04/sgx_linux_x64_driver_1.20.bin -O sgx_linux_x64_driver.bin
 chmod +x sgx_linux_x64_driver.bin
 sudo ./sgx_linux_x64_driver.bin
 ```
@@ -53,4 +53,4 @@ If you wish to make use of the Open Enclave CMake package, please install CMake 
 
 ### 4. Verify the Open Enclave SDK install
 
-See [Using the Open Enclave SDK](using_oe_sdk.md) for verifying and using the installed SDK.
+See [Using the Open Enclave SDK](Linux_using_oe_sdk.md) for verifying and using the installed SDK.

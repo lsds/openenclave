@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
 include (ExternalProject)
@@ -10,6 +10,10 @@ ExternalProject_Add(libcxx_includes
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/libcxx/include/__config ${LIBCXX_INCLUDES}/__config_original
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/__config ${LIBCXX_INCLUDES}/__config
   INSTALL_COMMAND "")
+
+set_property(DIRECTORY PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+    ${LIBCXX_INCLUDES}
+)
 
 add_library(libcxx OBJECT
   __dso_handle.cpp

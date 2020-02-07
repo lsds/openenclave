@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #define USE_DL_PREFIX
@@ -428,6 +428,13 @@ int oe_debug_posix_memalign(void** memptr, size_t alignment, size_t size)
         return OE_ENOMEM;
 
     return 0;
+}
+
+size_t oe_debug_malloc_usable_size(void* ptr)
+{
+    if (!ptr)
+        return 0;
+    return _get_header(ptr)->size;
 }
 
 void oe_debug_malloc_dump(void)
