@@ -213,7 +213,7 @@ let generate_args (ec : enclave_content) =
     include_errno;
     "";
     "#include <openenclave/bits/result.h>";
-    "#include <openenclave/bits/properties.h>";
+    "#include <openenclave/bits/eeid.h>";
     "";
     "/**** User includes. ****/";
     String.concat "\n" user_includes;

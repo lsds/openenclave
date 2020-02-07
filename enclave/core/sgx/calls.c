@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "../calls.h"
+#include <openenclave/bits/eeid.h>
 #include <openenclave/bits/safecrt.h>
 #include <openenclave/bits/safemath.h>
 #include <openenclave/corelibc/stdlib.h>
@@ -33,8 +34,6 @@
 #include "sgx_t.h"
 #include "td.h"
 #include "tee_t.h"
-
-// #include <openenclave/internal/hexdump.h>
 
 oe_result_t __oe_enclave_status = OE_OK;
 uint8_t __oe_initialized = 0;
