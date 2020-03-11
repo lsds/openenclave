@@ -20,6 +20,11 @@ const void* __oe_get_reloc_base(void);
 const void* __oe_get_reloc_end(void);
 size_t __oe_get_reloc_size(void);
 
+/* blob data (from the .oeblob section) */
+const void* __oe_get_blob_base(void);
+const void* __oe_get_blob_end(void);
+size_t __oe_get_blob_size(void);
+
 /* Heap */
 const void* __oe_get_heap_base(void);
 const void* __oe_get_heap_end(void);
