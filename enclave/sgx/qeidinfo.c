@@ -3,6 +3,7 @@
 
 #include <openenclave/bits/safecrt.h>
 #include <openenclave/bits/safemath.h>
+#include <openenclave/corelibc/stdlib.h>
 #include <openenclave/enclave.h>
 #include <openenclave/internal/calls.h>
 #include <openenclave/internal/raise.h>
@@ -30,10 +31,10 @@ oe_result_t oe_get_qe_identity_info(oe_get_qe_identity_info_args_t* args_out)
 
     memset(args_out, 0, sizeof(oe_get_qe_identity_info_args_t));
 
-    if (!(args.qe_id_info = malloc(QE_ID_INFO_SIZE)))
+    if (!(args.qe_id_info = oe_malloc(QE_ID_INFO_SIZE)))
         OE_RAISE(OE_OUT_OF_MEMORY);
 
-    if (!(args.issuer_chain = malloc(ISSUER_CHAIN_SIZE)))
+    if (!(args.issuer_chain = oe_malloc(ISSUER_CHAIN_SIZE)))
         OE_RAISE(OE_OUT_OF_MEMORY);
 
     args.qe_id_info_size = QE_ID_INFO_SIZE;
@@ -108,10 +109,10 @@ oe_result_t oe_get_qe_identity_info(oe_get_qe_identity_info_args_t* args_out)
 done:
 
     if (args.qe_id_info)
-        free(args.qe_id_info);
+        oe_free(args.qe_id_info);
 
     if (args.issuer_chain)
-        free(args.issuer_chain);
+        oe_free(args.issuer_chain);
 
     return result;
 }
@@ -123,6 +124,6 @@ void oe_free_qe_identity_info_args(oe_get_qe_identity_info_args_t* args)
         return;
 
     // Free buffers on the enclave side.
-    free(args->issuer_chain);
-    free(args->qe_id_info);
+    oe_free(args->issuer_chain);
+    oe_free(args->qe_id_info);
 }

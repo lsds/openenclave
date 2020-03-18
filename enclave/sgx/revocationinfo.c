@@ -4,6 +4,7 @@
 #include <openenclave/bits/safecrt.h>
 #include <openenclave/bits/safemath.h>
 #include <openenclave/corelibc/stdio.h>
+#include <openenclave/corelibc/stdlib.h>
 #include <openenclave/enclave.h>
 #include <openenclave/internal/calls.h>
 #include <openenclave/internal/raise.h>
@@ -139,14 +140,14 @@ done:
     /* Free out buffer. */
     if (result != OE_OK)
     {
-        free(out.tcb_info);
-        free(out.tcb_issuer_chain);
+        oe_free(out.tcb_info);
+        oe_free(out.tcb_issuer_chain);
 
         for (size_t i = 0; i < OE_COUNTOF(out.crl); i++)
-            free(out.crl[i]);
+            oe_free(out.crl[i]);
 
         for (size_t i = 0; i < OE_COUNTOF(out.crl_issuer_chain); i++)
-            free(out.crl_issuer_chain[i]);
+            oe_free(out.crl_issuer_chain[i]);
     }
 
     return result;
@@ -156,15 +157,15 @@ void oe_free_get_revocation_info_args(oe_get_revocation_info_args_t* args)
 {
     if (args)
     {
-        free(args->tcb_info);
-        free(args->tcb_issuer_chain);
+        oe_free(args->tcb_info);
+        oe_free(args->tcb_issuer_chain);
 
         for (size_t i = 0; i < OE_COUNTOF(args->crl); i++)
-            free(args->crl[i]);
+            oe_free(args->crl[i]);
 
         for (size_t i = 0; i < OE_COUNTOF(args->crl_issuer_chain); i++)
-            free(args->crl_issuer_chain[i]);
+            oe_free(args->crl_issuer_chain[i]);
 
-        free(args->buffer);
+        oe_free(args->buffer);
     }
 }
